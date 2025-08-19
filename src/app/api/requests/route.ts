@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const where: any = {
-      visibility: 'PUBLIC', // Only show public requests for general listing
+      status: 'OPEN' // Only show open requests for general listing
     };
 
     if (category && category !== 'All') {
@@ -106,7 +106,6 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
       timeWindowStart,
       timeWindowEnd,
       urgency = 'NORMAL',
-      visibility = 'PUBLIC',
       requirements = [],
       language,
       isRecurring = false
@@ -131,7 +130,6 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
         timeWindowStart: timeWindowStart ? new Date(timeWindowStart) : null,
         timeWindowEnd: timeWindowEnd ? new Date(timeWindowEnd) : null,
         urgency,
-        visibility,
         requirements: JSONUtils.stringify(requirements),
         attachments: JSONUtils.stringify([])
       },
