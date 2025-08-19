@@ -73,7 +73,7 @@ model MitzvahRequest {
   updatedAt       DateTime @updatedAt
 
   owner       User @relation("RequestOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  assignments Assignment[]
+  assignment  Assignment?
   pointsEntries PointsLedger[]
   messages    Message[]
   flags       Flag[]
