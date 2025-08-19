@@ -17,12 +17,21 @@ if (!global.__prismaLastRecreation) {
 }
 
 // Create a function to get or create prisma client with connection pooling
-function createPrismaClient() {
+function createPrismaClient(forceNewConnection: boolean = false) {
+  let databaseUrl = process.env.DATABASE_URL;
+  
+  // For forced new connections, add a random parameter to ensure new connection pool
+  if (forceNewConnection && databaseUrl) {
+    const separator = databaseUrl.includes('?') ? '&' : '?';
+    const randomId = Math.random().toString(36).substring(2, 15);
+    databaseUrl = `${databaseUrl}${separator}connection_id=${randomId}`;
+  }
+  
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: databaseUrl,
       },
     },
   })
@@ -46,7 +55,7 @@ async function recreatePrismaClient() {
   const timeSinceLastRecreation = now - (global.__prismaLastRecreation || 0)
   
   // Don't recreate too frequently (minimum 5 seconds between recreations)
-  if (timeSinceLastRecreation < 5000) {
+  if (timeSinceLastRecreation < 5000 && (global.__prismaLastRecreation || 0) > 0) {
     safeConsoleError(`Skipping client recreation - too recent (${timeSinceLastRecreation}ms ago)`)
     return global.__prisma || getPrismaClient()
   }
@@ -55,12 +64,10 @@ async function recreatePrismaClient() {
     // Force disconnect existing client with proper cleanup
     if (global.__prisma) {
       safeConsoleError('Disconnecting existing Prisma client...')
-      global.__prisma.$disconnect().catch(() => {
-        // Ignore disconnect errors, we're creating a new client anyway
-      })
+      await global.__prisma.$disconnect()
       
       // Wait a moment for cleanup
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
   } catch (error) {
     // Ignore any errors during disconnect
@@ -71,8 +78,8 @@ async function recreatePrismaClient() {
   global.__prismaClientId = (global.__prismaClientId || 0) + 1
   global.__prismaLastRecreation = now
   
-  // Create a completely new client instance
-  const newClient = createPrismaClient()
+  // Create a completely new client instance with unique connection string
+  const newClient = createPrismaClient(true) // Force new connection for conflicts
   
   // Add a marker to the client for debugging
   Object.defineProperty(newClient, '_clientId', {
@@ -146,8 +153,30 @@ export async function withPrisma<T>(
                                   error.message?.includes('too many clients') ||
                                   error.name === 'PrismaClientInitializationError';
       
+      // Handle prepared statement errors with immediate recreation and longer wait
+      if (isPreparedStatementError) {
+        safeConsoleError(`Prepared statement conflict detected (attempt ${attempt}/${maxRetries}). Recreating client...`);
+        
+        // Always recreate for prepared statement conflicts, but limit frequency
+        try {
+          await currentClient.$disconnect();
+        } catch (disconnectError) {
+          // Ignore disconnect errors
+        }
+        
+        // Wait longer for prepared statement conflicts to clear
+        const waitTime = 2000 + (attempt * 1000); // 2-5 seconds
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Force create a completely new client
+        currentClient = await recreatePrismaClient();
+        
+        if (attempt < maxRetries) {
+          continue;
+        }
+      }
       // Handle max connections error with aggressive cleanup
-      if (isMaxConnectionsError) {
+      else if (isMaxConnectionsError) {
         safeConsoleError(`Max connections reached (attempt ${attempt}/${maxRetries}). Performing aggressive cleanup...`);
         
         // Force cleanup of current client
@@ -165,7 +194,7 @@ export async function withPrisma<T>(
           await new Promise(resolve => setTimeout(resolve, waitTime));
           
           // Force a fresh client (but don't count as recreation)
-          global.__prisma = createPrismaClient();
+          global.__prisma = createPrismaClient(true); // Force new connection
           global.__prismaClientId = (global.__prismaClientId || 0) + 1;
           prisma = global.__prisma;
           currentClient = global.__prisma;
@@ -175,7 +204,7 @@ export async function withPrisma<T>(
         }
       }
       // Handle other database errors with recreation
-      else if ((isPreparedStatementError || isConnectionError) && recreationCount < maxRecreations) {
+      else if (isConnectionError && recreationCount < maxRecreations) {
         safeConsoleError(`Database error detected (attempt ${attempt}/${maxRetries}, recreation ${recreationCount + 1}/${maxRecreations}):`, error.code || error.message);
         
         // Force disconnect and recreate client
@@ -188,8 +217,8 @@ export async function withPrisma<T>(
         currentClient = await recreatePrismaClient();
         recreationCount++;
         
-        // For prepared statement errors, wait progressively longer
-        const waitTime = isPreparedStatementError ? 1000 + (attempt * 500) + (recreationCount * 1000) : 500;
+        // Wait before retry
+        const waitTime = 500 + (attempt * 250);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         
         if (attempt < maxRetries) {
