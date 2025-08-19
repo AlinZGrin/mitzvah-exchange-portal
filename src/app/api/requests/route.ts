@@ -74,7 +74,6 @@ export async function GET(request: NextRequest) {
     // Transform the data to parse JSON fields
     const transformedRequests = requests.map((request: any) => ({
       ...request,
-      locationGeo: JSONUtils.parseObject(request.locationGeo, {}),
       requirements: JSONUtils.parseArray(request.requirements),
       attachments: JSONUtils.parseArray(request.attachments)
     }));
@@ -150,7 +149,6 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     // Transform response
     const transformedRequest = {
       ...newRequest,
-      locationGeo: JSONUtils.parseObject(newRequest.locationGeo, {}),
       requirements: JSONUtils.parseArray(newRequest.requirements),
       attachments: JSONUtils.parseArray(newRequest.attachments)
     };

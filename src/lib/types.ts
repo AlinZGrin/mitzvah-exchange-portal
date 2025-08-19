@@ -33,7 +33,7 @@ export interface MitzvahRequest {
   title: string;
   description: string;
   category: MitzvahCategory;
-  locationGeo?: { lat: number; lng: number }; // Will be stored as JSON string in DB
+  location?: string; // Encrypted/hashed location data
   locationDisplay: string;
   timeWindowStart?: Date;
   timeWindowEnd?: Date;
