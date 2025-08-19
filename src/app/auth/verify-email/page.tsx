@@ -1,14 +1,15 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { CheckCircle, XCircle, Mail, ArrowRight } from "lucide-react";
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { CheckCircle, XCircle, Mail, ArrowRight } from 'lucide-react';
 
-export default function VerifyEmailPage() {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'pending' | 'success' | 'error' | 'expired'>('pending');
+function VerifyEmailContent() {
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'pending'>('pending');
   const [message, setMessage] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -19,13 +20,13 @@ export default function VerifyEmailPage() {
 
     // Handle URL-based verification results
     if (success === 'true') {
-      setVerificationStatus('success');
+      setStatus('success');
       setMessage('Your email has been verified successfully!');
       return;
     }
 
     if (error) {
-      setVerificationStatus('error');
+      setStatus('error');
       switch (error) {
         case 'missing-params':
           setMessage('Missing verification parameters. Please check your email link.');
@@ -50,6 +51,7 @@ export default function VerifyEmailPage() {
 
   const verifyEmail = async (token: string, email: string) => {
     setIsVerifying(true);
+    setStatus('loading');
     try {
       const response = await fetch('/api/auth/verify-email', {
         method: 'POST',
@@ -62,14 +64,14 @@ export default function VerifyEmailPage() {
       const data = await response.json();
 
       if (response.ok && data.verified) {
-        setVerificationStatus('success');
+        setStatus('success');
         setMessage('Your email has been verified successfully!');
       } else {
-        setVerificationStatus('error');
+        setStatus('error');
         setMessage(data.error || 'Verification failed');
       }
     } catch (error) {
-      setVerificationStatus('error');
+      setStatus('error');
       setMessage('Network error occurred during verification');
     } finally {
       setIsVerifying(false);
@@ -121,14 +123,14 @@ export default function VerifyEmailPage() {
           </h2>
         </div>
 
-        {isVerifying && (
+        {status === 'loading' && (
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-2 text-sm text-gray-600">Verifying your email...</p>
           </div>
         )}
 
-        {verificationStatus === 'success' && (
+        {status === 'success' && (
           <div className="text-center space-y-4">
             <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
             <div className="space-y-2">
@@ -156,7 +158,7 @@ export default function VerifyEmailPage() {
           </div>
         )}
 
-        {verificationStatus === 'error' && (
+        {status === 'error' && (
           <div className="text-center space-y-4">
             <XCircle className="mx-auto h-16 w-16 text-red-500" />
             <div className="space-y-2">
@@ -180,7 +182,7 @@ export default function VerifyEmailPage() {
           </div>
         )}
 
-        {verificationStatus === 'pending' && !isVerifying && (
+        {status === 'pending' && !isVerifying && (
           <div className="space-y-6">
             <div className="text-center">
               <h3 className="text-lg font-medium text-gray-900">Check Your Email</h3>
@@ -223,7 +225,7 @@ export default function VerifyEmailPage() {
                   name="token"
                   type="text"
                   required
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
                   placeholder="Enter verification token from email"
                 />
               </div>
@@ -244,5 +246,24 @@ export default function VerifyEmailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-2 text-sm text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
