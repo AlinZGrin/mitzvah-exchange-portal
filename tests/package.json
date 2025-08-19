@@ -1,0 +1,23 @@
+{
+  "name": "mitzvah-exchange-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Mitzvah Exchange Portal",
+  "scripts": {
+    "test": "jest",
+    "test:api": "jest tests/integration/api.test.js",
+    "test:auth": "jest tests/integration/auth.test.js",
+    "test:e2e": "playwright test",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "jest": "^29.7.0",
+    "axios": "^1.6.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "testTimeout": 30000
+  }
+}
