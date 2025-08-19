@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(request: NextRequest) {
+export const GET = requireAuth(async (request: NextRequest, user) => {
   try {
-    const { user } = await verifyAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    }
-
     // Get assignments where user is either the performer or the requester
     const assignments = await prisma.assignment.findMany({
       where: {
@@ -31,11 +26,10 @@ export async function GET(request: NextRequest) {
           include: {
             profile: true
           }
-        },
-        reviews: true
+        }
       },
       orderBy: {
-        createdAt: 'desc'
+        claimedAt: 'desc'
       }
     });
 
@@ -47,4 +41,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
         ...userWithoutSensitiveData,
         profile: {
           ...user.profile,
-          languages: JSONUtils.parseArray(user.profile?.languages),
-          skills: JSONUtils.parseArray(user.profile?.skills),
-          privacy: JSONUtils.parseObject(user.profile?.privacy, {})
+          languages: JSONUtils.parseArray(user.profile?.languages || null),
+          skills: JSONUtils.parseArray(user.profile?.skills || null),
+          privacy: JSONUtils.parseObject(user.profile?.privacy || null, {})
         }
       }
     }, { status: 201 });

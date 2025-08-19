@@ -10,8 +10,18 @@ export interface AuthenticatedUser {
 
 export async function authenticateUser(request: NextRequest): Promise<AuthenticatedUser | null> {
   try {
-    // Get token from cookie
-    const token = request.cookies.get('auth-token')?.value;
+    let token: string | undefined;
+    
+    // Try to get token from Authorization header first
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // If no Bearer token, try to get from cookie
+    if (!token) {
+      token = request.cookies.get('auth-token')?.value;
+    }
     
     if (!token) {
       return null;

@@ -45,6 +45,7 @@ export interface UserStats {
   requestsCompleted: number
   averageRating: number
   totalReviews: number
+  currentRank: number
 }
 
 // API utility functions

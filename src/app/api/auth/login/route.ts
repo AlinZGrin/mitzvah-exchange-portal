@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
     // Set HTTP-only cookie with the token
     const response = NextResponse.json({
       message: 'Login successful',
-      user: responseUser
+      user: responseUser,
+      token: token  // Add token to response for frontend
     });
 
     response.cookies.set('auth-token', token, {
