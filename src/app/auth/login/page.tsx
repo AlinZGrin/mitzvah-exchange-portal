@@ -131,6 +131,15 @@ export default function LoginPage() {
             </button>
           </div>
 
+          <div className="text-center">
+            <Link
+              href="/auth/forgot-password"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
+              Forgot your password?
+            </Link>
+          </div>
+
           {needsVerification && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
               <p className="text-yellow-800 text-sm mb-2">
