@@ -17,11 +17,16 @@ const createTransporter = () => {
       !emailPass ||
       emailUser.includes('example.com') ||
       emailUser === 'your-email@example.com' ||
-      emailPass === 'your-password') {
+      emailPass === 'your-password' ||
+      emailPass.includes('your-') ||
+      emailPass.includes('password-here')) {
     console.log('⚠️  Email service not configured or disabled - falling back to console logging');
+    console.log('📧 To enable email: Configure EMAIL_SERVER_HOST, EMAIL_SERVER_USER, and EMAIL_SERVER_PASSWORD');
     return null;
   }
 
+  console.log(`📧 Email service configured with ${emailHost} for user ${emailUser}`);
+  
   return nodemailer.createTransport({
     host: emailHost,
     port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
