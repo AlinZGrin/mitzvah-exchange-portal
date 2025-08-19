@@ -271,9 +271,20 @@ export default function DiscoverPage() {
           </select>
         </div>
 
-        {error && (
+        {error && requests.length === 0 && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            Error loading requests: {error}
+            <div className="flex items-center gap-2">
+              <span>Error loading requests: {error}</span>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            </div>
+            {!loading && (
+              <button 
+                onClick={() => loadRequests()}
+                className="mt-2 text-sm bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition-colors"
+              >
+                Try again
+              </button>
+            )}
           </div>
         )}
 

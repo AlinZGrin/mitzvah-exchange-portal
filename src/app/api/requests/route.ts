@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withPrisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { JSONUtils, PointsUtils } from '@/lib/types';
+import { safeConsoleError } from '@/lib/error-utils';
 
 // GET /api/requests - Get all requests with filters
 export async function GET(request: NextRequest) {
@@ -38,41 +39,47 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const requests = await prisma.mitzvahRequest.findMany({
-      where,
-      include: {
-        owner: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                displayName: true
+    const result = await withPrisma(async (prisma) => {
+      const requests = await prisma.mitzvahRequest.findMany({
+        where,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  displayName: true
+                }
               }
             }
-          }
-        },
-        assignment: {
-          include: {
-            performer: {
-              select: {
-                id: true,
-                profile: {
-                  select: {
-                    displayName: true
+          },
+          assignment: {
+            include: {
+              performer: {
+                select: {
+                  id: true,
+                  profile: {
+                    select: {
+                      displayName: true
+                    }
                   }
                 }
               }
             }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset
+      });
+
+      const total = await prisma.mitzvahRequest.count({ where });
+
+      return { requests, total };
     });
 
     // Transform the data to parse JSON fields
-    const transformedRequests = requests.map((request: any) => ({
+    const transformedRequests = result.requests.map((request: any) => ({
       ...request,
       requirements: JSONUtils.parseArray(request.requirements),
       attachments: JSONUtils.parseArray(request.attachments)
@@ -80,26 +87,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       requests: transformedRequests,
-      total: await prisma.mitzvahRequest.count({ where })
+      total: result.total
     });
 
   } catch (error) {
-    // Sanitize error message to prevent DATABASE_URL leakage
-    const sanitizeError = (err: any) => {
-      if (err && typeof err === 'object') {
-        const sanitized = { ...err };
-        if (sanitized.message && typeof sanitized.message === 'string') {
-          sanitized.message = sanitized.message.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
-        }
-        if (sanitized.stack && typeof sanitized.stack === 'string') {
-          sanitized.stack = sanitized.stack.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
-        }
-        return sanitized;
-      }
-      return err;
-    };
-    
-    console.error('Error fetching requests:', sanitizeError(error));
+    safeConsoleError('Error fetching requests:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -133,32 +125,34 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
       );
     }
 
-    // Create the request
-    const newRequest = await prisma.mitzvahRequest.create({
-      data: {
-        ownerId: user.id,
-        title,
-        description,
-        category,
-        locationDisplay,
-        timeWindowStart: timeWindowStart ? new Date(timeWindowStart) : null,
-        timeWindowEnd: timeWindowEnd ? new Date(timeWindowEnd) : null,
-        urgency,
-        requirements: JSONUtils.stringify(requirements),
-        attachments: JSONUtils.stringify([])
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                displayName: true
+    const newRequest = await withPrisma(async (prisma) => {
+      // Create the request
+      return await prisma.mitzvahRequest.create({
+        data: {
+          ownerId: user.id,
+          title,
+          description,
+          category,
+          locationDisplay,
+          timeWindowStart: timeWindowStart ? new Date(timeWindowStart) : null,
+          timeWindowEnd: timeWindowEnd ? new Date(timeWindowEnd) : null,
+          urgency,
+          requirements: JSONUtils.stringify(requirements),
+          attachments: JSONUtils.stringify([])
+        },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  displayName: true
+                }
               }
             }
           }
         }
-      }
+      });
     });
 
     // Transform response
@@ -174,22 +168,7 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     }, { status: 201 });
 
   } catch (error) {
-    // Sanitize error message to prevent DATABASE_URL leakage
-    const sanitizeError = (err: any) => {
-      if (err && typeof err === 'object') {
-        const sanitized = { ...err };
-        if (sanitized.message && typeof sanitized.message === 'string') {
-          sanitized.message = sanitized.message.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
-        }
-        if (sanitized.stack && typeof sanitized.stack === 'string') {
-          sanitized.stack = sanitized.stack.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
-        }
-        return sanitized;
-      }
-      return err;
-    };
-    
-    console.error('Error creating request:', sanitizeError(error));
+    safeConsoleError('Error creating request:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

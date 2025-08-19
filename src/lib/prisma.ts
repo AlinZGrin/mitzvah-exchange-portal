@@ -43,29 +43,46 @@ function sanitizeError(error: any): any {
   return error;
 }
 
-// Enhanced connection handling for serverless
+// Enhanced connection handling for serverless with retry logic
 export async function withPrisma<T>(
-  operation: (prisma: PrismaClient) => Promise<T>
+  operation: (prisma: PrismaClient) => Promise<T>,
+  maxRetries: number = 3
 ): Promise<T> {
-  try {
-    // Try to ping the database first
-    await prisma.$connect()
-    const result = await operation(prisma)
-    return result
-  } catch (error: any) {
-    // If it's a prepared statement error, try to disconnect and reconnect
-    if (error.message?.includes('prepared statement') || error.code === 'P2024') {
-      console.log('Detected prepared statement conflict, reconnecting...')
-      await prisma.$disconnect()
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Try to ping the database first
       await prisma.$connect()
       const result = await operation(prisma)
       return result
+    } catch (error: any) {
+      lastError = error;
+      
+      // If it's a prepared statement error, try to disconnect and reconnect
+      if (error.message?.includes('prepared statement') || error.code === 'P2024') {
+        console.log('Detected prepared statement conflict, reconnecting...')
+        await prisma.$disconnect()
+        await prisma.$connect()
+        continue;
+      }
+      
+      // If it's a connection error and we have retries left, wait and retry
+      if ((error.code === 'P1001' || error.message?.includes("Can't reach database")) && attempt < maxRetries) {
+        console.log(`Database connection failed (attempt ${attempt}/${maxRetries}), retrying in ${attempt}s...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        await prisma.$disconnect();
+        continue;
+      }
+      
+      // If it's the last attempt or a non-retryable error, sanitize and throw
+      const sanitizedError = sanitizeError(error);
+      throw sanitizedError;
     }
-    
-    // Sanitize error before re-throwing
-    const sanitizedError = sanitizeError(error);
-    throw sanitizedError;
   }
+  
+  // If we get here, all retries failed
+  throw sanitizeError(lastError);
 }
 
 // For development, avoid creating multiple instances

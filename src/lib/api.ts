@@ -346,21 +346,47 @@ export function useRequests(filters: Parameters<typeof apiClient.getRequests>[0]
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
-  const loadRequests = useCallback(async (newFilters: typeof filters = {}) => {
+  const loadRequests = useCallback(async (newFilters: typeof filters = {}, isRetry = false) => {
     try {
-      setLoading(true)
-      setError(null)
+      if (!isRetry) {
+        setLoading(true)
+      }
+      // Clear error when starting a new request (not a retry)
+      if (!isRetry) {
+        setError(null)
+        setRetryCount(0)
+      }
+      
       const data = await apiClient.getRequests({ ...filters, ...newFilters })
       setRequests(data.requests)
       setTotal(data.total)
       setHasMore(data.hasMore)
+      
+      // Clear error on successful request
+      setError(null)
+      setRetryCount(0)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load requests')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load requests'
+      
+      // If it's a network/server error and we haven't retried too many times, attempt retry
+      if (errorMessage.includes('Internal server error') && retryCount < 2) {
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1)
+          loadRequests(newFilters, true)
+        }, 1000 * (retryCount + 1)) // Exponential backoff: 1s, 2s
+        return
+      }
+      
+      // Only show error if we have no data or if retries failed
+      if (requests.length === 0 || retryCount >= 2) {
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters, retryCount, requests.length])
 
   useEffect(() => {
     loadRequests()
