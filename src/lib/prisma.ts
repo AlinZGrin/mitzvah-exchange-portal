@@ -3,6 +3,12 @@ import { safeConsoleError } from './error-utils'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
+  clientId: number
+}
+
+// Initialize client counter for tracking recreations
+if (!globalForPrisma.clientId) {
+  globalForPrisma.clientId = 0
 }
 
 // Create a function to get or create prisma client
@@ -21,12 +27,36 @@ export let prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 // Function to recreate Prisma client (for prepared statement conflicts)
 function recreatePrismaClient() {
-  if (globalForPrisma.prisma) {
-    globalForPrisma.prisma.$disconnect().catch(() => {})
+  try {
+    // Force disconnect existing client
+    if (globalForPrisma.prisma) {
+      globalForPrisma.prisma.$disconnect().catch(() => {
+        // Ignore disconnect errors, we're creating a new client anyway
+      })
+    }
+  } catch (error) {
+    // Ignore any errors during disconnect
   }
+  
+  // Increment client ID to track recreations
+  globalForPrisma.clientId = (globalForPrisma.clientId || 0) + 1
+  
+  // Create a completely new client instance
   const newClient = createPrismaClient()
+  
+  // Add a marker to the client for debugging
+  Object.defineProperty(newClient, '_clientId', {
+    value: globalForPrisma.clientId,
+    writable: false,
+    enumerable: false
+  })
+  
+  // Update both global reference and exported variable
   globalForPrisma.prisma = newClient
   prisma = newClient
+  
+  safeConsoleError(`Created new Prisma client (ID: ${globalForPrisma.clientId})`)
+  
   return newClient
 }
 
@@ -62,37 +92,51 @@ export async function withPrisma<T>(
 ): Promise<T> {
   let lastError: any;
   let currentClient = prisma;
+  let recreationCount = 0;
+  const maxRecreations = 2; // Limit client recreations to prevent infinite loops
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Try to ping the database first
-      await currentClient.$connect()
       const result = await operation(currentClient)
       return result
     } catch (error: any) {
       lastError = error;
       
-      // If it's a prepared statement error, recreate the client entirely
-      if (error.message?.includes('prepared statement') || error.code === 'P2024' || error.code === '42P05') {
-        safeConsoleError('Detected prepared statement conflict, recreating client...');
-        currentClient = recreatePrismaClient();
-        
-        // Wait a bit before retrying to avoid immediate conflicts
-        await new Promise(resolve => setTimeout(resolve, 100));
-        continue;
-      }
+      // Check for prepared statement or connection errors
+      const isPreparedStatementError = error.message?.includes('prepared statement') || 
+                                     error.code === 'P2024' || 
+                                     error.code === '42P05' ||
+                                     error.message?.includes('already exists');
       
-      // If it's a connection error and we have retries left, wait and retry
-      if ((error.code === 'P1001' || error.message?.includes("Can't reach database")) && attempt < maxRetries) {
-        safeConsoleError(`Database connection failed (attempt ${attempt}/${maxRetries}), retrying in ${attempt}s...`);
-        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
-        await currentClient.$disconnect();
-        continue;
+      const isConnectionError = error.code === 'P1001' || 
+                               error.message?.includes("Can't reach database") ||
+                               error.message?.includes('ConnectorError');
+      
+      if ((isPreparedStatementError || isConnectionError) && recreationCount < maxRecreations) {
+        safeConsoleError(`Database error detected (attempt ${attempt}/${maxRetries}, recreation ${recreationCount + 1}/${maxRecreations}):`, error.code || error.message);
+        
+        // Force disconnect and recreate client
+        try {
+          await currentClient.$disconnect();
+        } catch (disconnectError) {
+          // Ignore disconnect errors
+        }
+        
+        currentClient = recreatePrismaClient();
+        recreationCount++;
+        
+        // For prepared statement errors, wait progressively longer
+        const waitTime = isPreparedStatementError ? 200 + (attempt * 100) + (recreationCount * 200) : 100;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        if (attempt < maxRetries) {
+          continue;
+        }
       }
       
       // If it's the last attempt or a non-retryable error, sanitize and throw
       const sanitizedError = sanitizeError(error);
-      safeConsoleError(`Database operation failed after ${attempt} attempts:`, sanitizedError);
+      safeConsoleError(`Database operation failed after ${attempt} attempts and ${recreationCount} recreations:`, sanitizedError);
       throw sanitizedError;
     }
   }
