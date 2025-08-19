@@ -2,14 +2,23 @@ import nodemailer from 'nodemailer';
 
 // Email transporter configuration
 const createTransporter = () => {
+  // Force console logging in production until proper email is configured
+  const forceConsoleLogging = process.env.FORCE_EMAIL_CONSOLE_LOGGING === 'true';
+  
   // Check if email is properly configured
   const emailHost = process.env.EMAIL_SERVER_HOST;
   const emailUser = process.env.EMAIL_SERVER_USER;
   const emailPass = process.env.EMAIL_SERVER_PASSWORD;
   
-  // If email is not configured, fall back to console logging
-  if (!emailHost || !emailUser || !emailPass) {
-    console.log('⚠️  Email service not configured - falling back to console logging');
+  // If email is not configured, has placeholder values, or forced console logging
+  if (forceConsoleLogging || 
+      !emailHost || 
+      !emailUser || 
+      !emailPass ||
+      emailUser.includes('example.com') ||
+      emailUser === 'your-email@example.com' ||
+      emailPass === 'your-password') {
+    console.log('⚠️  Email service not configured or disabled - falling back to console logging');
     return null;
   }
 
