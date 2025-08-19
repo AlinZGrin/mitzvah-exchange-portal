@@ -92,9 +92,9 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
     const currentRank = usersWithMorePoints.length + 1;
 
     // Prepare response
-    const { password: _, emailVerificationToken: __, ...userWithoutSensitiveData } = userWithProfile;
+    const { password: _, emailVerificationToken: __, pointsEntries, ownedRequests, assignments, ...userWithoutSensitiveData } = userWithProfile;
     
-    const responseData = {
+    const userData = {
       ...userWithoutSensitiveData,
       profile: userWithProfile.profile ? {
         ...userWithProfile.profile,
@@ -103,14 +103,22 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
         privacy: JSONUtils.parseObject(userWithProfile.profile.privacy, {}),
         availability: JSONUtils.parseObject(userWithProfile.profile.availability, {})
       } : null,
-      stats: {
-        totalPoints: totalPoints._sum.delta || 0,
-        completedMitzvahs: completedAssignments,
-        completionRate,
-        currentRank,
-        totalRequests: userWithProfile.ownedRequests.length,
-        activeAssignments: userWithProfile.assignments.length
-      },
+    };
+
+    const userStats = {
+      totalPoints: totalPoints._sum.delta || 0,
+      requestsPosted: userWithProfile.ownedRequests.length,
+      requestsCompleted: completedAssignments,
+      averageRating: 4.5, // TODO: Calculate from reviews when implemented
+      totalReviews: 0, // TODO: Count from reviews when implemented
+      currentRank,
+      completionRate,
+      activeAssignments: userWithProfile.assignments.length
+    };
+
+    const responseData = {
+      user: userData,
+      stats: userStats,
       recentActivity: userWithProfile.pointsEntries,
       activeRequests: userWithProfile.ownedRequests.map((req: any) => ({
         ...req,

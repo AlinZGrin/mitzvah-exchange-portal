@@ -70,7 +70,7 @@ class ApiClient {
     }
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
+  async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}/api${endpoint}`
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -227,6 +227,8 @@ export function useAuth() {
       } catch (err) {
         console.error('Auth check failed:', err)
         apiClient.setToken(null)
+        setUser(null)
+        setStats(null)
       } finally {
         setLoading(false)
       }
@@ -372,17 +374,11 @@ export function useAssignments() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch('/api/assignments', {
-        credentials: 'include'
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setAssignments(data.assignments || [])
-      } else {
-        throw new Error('Failed to load assignments')
-      }
+      const data = await apiClient.request('/assignments')
+      setAssignments(data.assignments || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load assignments')
+      setAssignments([]) // Clear assignments on error
     } finally {
       setLoading(false)
     }
@@ -394,19 +390,12 @@ export function useAssignments() {
 
   const completeAssignment = async (assignmentId: string, notes: string = '', proofPhotos: string[] = []) => {
     try {
-      const response = await fetch(`/api/assignments/${assignmentId}/complete`, {
+      const response = await apiClient.request(`/assignments/${assignmentId}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ notes, proofPhotos })
       })
-      if (response.ok) {
-        await loadAssignments()
-        return await response.json()
-      } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to complete assignment')
-      }
+      await loadAssignments()
+      return response
     } catch (err) {
       throw err
     }
@@ -414,19 +403,12 @@ export function useAssignments() {
 
   const confirmAssignment = async (assignmentId: string, confirmed: boolean, notes: string = '') => {
     try {
-      const response = await fetch(`/api/assignments/${assignmentId}/confirm`, {
+      const response = await apiClient.request(`/assignments/${assignmentId}/confirm`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ confirmed, notes })
       })
-      if (response.ok) {
-        await loadAssignments()
-        return await response.json()
-      } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to confirm assignment')
-      }
+      await loadAssignments()
+      return response
     } catch (err) {
       throw err
     }
