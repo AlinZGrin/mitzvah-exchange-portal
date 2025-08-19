@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/lib/prisma';
+import { prisma, withPrisma } from '@/lib/prisma';
 import { JSONUtils } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -17,9 +17,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with profile
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { profile: true }
+    const user = await withPrisma(async (prisma) => {
+      return await prisma.user.findUnique({
+        where: { email },
+        include: { profile: true }
+      });
     });
 
     if (!user) {
@@ -47,9 +49,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() }
+    await withPrisma(async (prisma) => {
+      return await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() }
+      });
     });
 
     // Generate JWT token
