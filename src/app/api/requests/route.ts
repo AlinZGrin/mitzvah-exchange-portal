@@ -84,7 +84,22 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching requests:', error);
+    // Sanitize error message to prevent DATABASE_URL leakage
+    const sanitizeError = (err: any) => {
+      if (err && typeof err === 'object') {
+        const sanitized = { ...err };
+        if (sanitized.message && typeof sanitized.message === 'string') {
+          sanitized.message = sanitized.message.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
+        }
+        if (sanitized.stack && typeof sanitized.stack === 'string') {
+          sanitized.stack = sanitized.stack.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
+        }
+        return sanitized;
+      }
+      return err;
+    };
+    
+    console.error('Error fetching requests:', sanitizeError(error));
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -159,7 +174,22 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating request:', error);
+    // Sanitize error message to prevent DATABASE_URL leakage
+    const sanitizeError = (err: any) => {
+      if (err && typeof err === 'object') {
+        const sanitized = { ...err };
+        if (sanitized.message && typeof sanitized.message === 'string') {
+          sanitized.message = sanitized.message.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
+        }
+        if (sanitized.stack && typeof sanitized.stack === 'string') {
+          sanitized.stack = sanitized.stack.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
+        }
+        return sanitized;
+      }
+      return err;
+    };
+    
+    console.error('Error creating request:', sanitizeError(error));
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

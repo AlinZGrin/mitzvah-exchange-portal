@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { PointsUtils, JSONUtils } from '@/lib/types';
+import { safeConsoleError } from '@/lib/error-utils';
 
 // POST /api/assignments/[id]/confirm - Confirm assignment completion
 export const POST = requireAuth(async (request: NextRequest, user) => {
@@ -126,7 +127,7 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     });
 
   } catch (error) {
-    console.error('Error confirming assignment:', error);
+    safeConsoleError('Error confirming assignment:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

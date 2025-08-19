@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma, withPrisma } from '@/lib/prisma';
 import { JSONUtils } from '@/lib/types';
+import { safeConsoleError } from '@/lib/error-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error('Login error:', error);
+    safeConsoleError('Login error:', error);
     
     // Handle specific Prisma errors
     if (error instanceof Error) {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
         try {
           await prisma.$disconnect();
         } catch (disconnectError) {
-          console.error('Disconnect error:', disconnectError);
+          safeConsoleError('Disconnect error:', disconnectError);
         }
       }
     }

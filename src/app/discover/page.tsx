@@ -5,6 +5,22 @@ import { Search, Filter, MapPin, Clock, User, Heart, Loader2 } from "lucide-reac
 import { useRequests } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { MitzvahRequestWithRelations } from "@/lib/types";
+import dynamic from "next/dynamic";
+
+// Dynamically import MapView to avoid SSR issues
+const MapView = dynamic(() => import("@/components/map/MapView"), { 
+  ssr: false,
+  loading: () => (
+    <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+      <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
+        <div className="text-gray-500">
+          <MapPin className="h-16 w-16 mx-auto mb-2" />
+          <p>Loading map...</p>
+        </div>
+      </div>
+    </div>
+  )
+});
 
 const categories = ["All", "VISITS", "TRANSPORTATION", "ERRANDS", "TUTORING", "MEALS", "HOUSEHOLD", "TECHNOLOGY", "OTHER"];
 const urgencyLevels = ["All", "LOW", "NORMAL", "HIGH"];
@@ -384,17 +400,14 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* Map View Placeholder */}
+        {/* Map View */}
         {viewMode === "map" && (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center mb-4">
-              <div className="text-gray-500">
-                <MapPin className="h-16 w-16 mx-auto mb-2" />
-                <p>Interactive map view will be displayed here</p>
-                <p className="text-sm">Showing {filteredRequests.length} mitzvahs in your area</p>
-              </div>
-            </div>
-          </div>
+          <MapView 
+            requests={filteredRequests}
+            onClaimRequest={handleClaimRequest}
+            claimingId={claimingId}
+            isAuthenticated={isAuthenticated}
+          />
         )}
       </div>
     </div>

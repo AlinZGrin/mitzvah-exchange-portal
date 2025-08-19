@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { PointsUtils, JSONUtils } from '@/lib/types';
+import { safeConsoleError } from '@/lib/error-utils';
 
 // POST /api/requests/[id]/claim - Claim a request
 export const POST = requireAuth(async (request: NextRequest, user) => {
@@ -100,7 +101,7 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     });
 
   } catch (error) {
-    console.error('Error claiming request:', error);
+    safeConsoleError('Error claiming request:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

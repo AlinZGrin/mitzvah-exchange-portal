@@ -18,6 +18,31 @@ function createPrismaClient() {
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
+// Helper function to sanitize error messages
+function sanitizeError(error: any): any {
+  if (error && typeof error === 'object') {
+    const sanitized = { ...error };
+    
+    // Remove DATABASE_URL from error messages and stack traces
+    if (sanitized.message && typeof sanitized.message === 'string') {
+      sanitized.message = sanitized.message.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
+    }
+    
+    if (sanitized.stack && typeof sanitized.stack === 'string') {
+      sanitized.stack = sanitized.stack.replace(/postgresql:\/\/[^"'\s]+/g, '[DATABASE_URL_REDACTED]');
+    }
+    
+    // Handle nested errors
+    if (sanitized.cause) {
+      sanitized.cause = sanitizeError(sanitized.cause);
+    }
+    
+    return sanitized;
+  }
+  
+  return error;
+}
+
 // Enhanced connection handling for serverless
 export async function withPrisma<T>(
   operation: (prisma: PrismaClient) => Promise<T>
@@ -36,7 +61,10 @@ export async function withPrisma<T>(
       const result = await operation(prisma)
       return result
     }
-    throw error
+    
+    // Sanitize error before re-throwing
+    const sanitizedError = sanitizeError(error);
+    throw sanitizedError;
   }
 }
 

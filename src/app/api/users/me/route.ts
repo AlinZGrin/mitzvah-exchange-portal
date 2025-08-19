@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { JSONUtils } from '@/lib/types';
+import { safeConsoleError } from '@/lib/error-utils';
 
 // GET /api/users/me - Get current user profile and stats
 export const GET = requireAuth(async (request: NextRequest, user) => {
@@ -134,7 +135,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
     return NextResponse.json(responseData);
 
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    safeConsoleError('Error fetching user profile:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -182,7 +183,7 @@ export const PATCH = requireAuth(async (request: NextRequest, user) => {
     });
 
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    safeConsoleError('Error updating user profile:', error);
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { safeConsoleError } from '@/lib/error-utils';
 
 export const GET = requireAuth(async (request: NextRequest, user) => {
   try {
@@ -35,7 +36,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
 
     return NextResponse.json({ assignments });
   } catch (error) {
-    console.error("Error fetching assignments:", error);
+    safeConsoleError("Error fetching assignments:", error);
     return NextResponse.json(
       { error: "Failed to fetch assignments" },
       { status: 500 }
