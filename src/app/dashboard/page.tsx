@@ -21,7 +21,8 @@ import {
   Zap
 } from "lucide-react";
 import Link from "next/link";
-import { useAuth, useAssignments } from "@/lib/api";
+import { useAssignments } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import type { UserStats } from "@/lib/types";
 
 export default function DashboardPage() {

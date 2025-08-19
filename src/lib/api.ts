@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext, useMemo } from 'react'
 
 // Types for API responses
 export interface User {
@@ -55,7 +55,9 @@ class ApiClient {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token')
+      // Clear any old localStorage tokens and use sessionStorage instead
+      localStorage.removeItem('auth_token')
+      this.token = sessionStorage.getItem('auth_token')
     }
   }
 
@@ -63,11 +65,15 @@ class ApiClient {
     this.token = token
     if (typeof window !== 'undefined') {
       if (token) {
-        localStorage.setItem('auth_token', token)
+        sessionStorage.setItem('auth_token', token)
       } else {
-        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
       }
     }
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.token
   }
 
   async request(endpoint: string, options: RequestInit = {}) {
@@ -116,6 +122,9 @@ class ApiClient {
       showExactLocation: boolean
     }
   }) {
+    // Clear any previous token first
+    this.setToken(null)
+    
     const response = await this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData)
@@ -127,6 +136,9 @@ class ApiClient {
   }
 
   async login(email: string, password: string) {
+    // Clear any previous token first
+    this.setToken(null)
+    
     const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
@@ -142,6 +154,10 @@ class ApiClient {
       method: 'POST'
     })
     this.setToken(null)
+    // Also clear any lingering localStorage tokens
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token')
+    }
     return response
   }
 
@@ -226,7 +242,7 @@ export function useAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        if (apiClient['token']) {
+        if (apiClient.isAuthenticated()) {
           const data = await apiClient.getCurrentUser()
           setUser(data.user)
           setStats(data.stats)
@@ -247,9 +263,13 @@ export function useAuth() {
     checkAuth()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
       setError(null)
+      // Clear previous user state first
+      setUser(null)
+      setStats(null)
+      
       const response = await apiClient.login(email, password)
       const userData = await apiClient.getCurrentUser()
       setUser(userData.user)
@@ -260,9 +280,9 @@ export function useAuth() {
       setError(errorMessage)
       throw err
     }
-  }
+  }, [])
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiClient.logout()
       setUser(null)
@@ -274,11 +294,15 @@ export function useAuth() {
       setUser(null)
       setStats(null)
     }
-  }
+  }, [])
 
   const register = async (userData: Parameters<typeof apiClient.register>[0]) => {
     try {
       setError(null)
+      // Clear previous user state first
+      setUser(null)
+      setStats(null)
+      
       const response = await apiClient.register(userData)
       const userWithStats = await apiClient.getCurrentUser()
       setUser(userWithStats.user)
@@ -301,6 +325,8 @@ export function useAuth() {
     }
   }
 
+  const isAuthenticated = useMemo(() => !!user, [user])
+
   return {
     user,
     stats,
@@ -310,7 +336,7 @@ export function useAuth() {
     logout,
     register,
     updateProfile,
-    isAuthenticated: !!user
+    isAuthenticated
   }
 }
 

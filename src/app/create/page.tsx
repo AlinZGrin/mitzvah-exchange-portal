@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, MapPin, Clock, AlertCircle, Camera } from "lucide-react";
-import { useAuth, apiClient } from "@/lib/api";
+import { apiClient } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 const categories = [
   { id: "VISITS", name: "Visits", icon: "👥", description: "Companionship and social visits" },

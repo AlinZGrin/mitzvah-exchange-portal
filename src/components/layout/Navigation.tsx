@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Menu, X, Heart, Search, Plus, User, Bell, LogOut } from "lucide-react";
-import { useAuth } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);

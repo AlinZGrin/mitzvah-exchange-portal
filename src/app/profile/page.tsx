@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, Mail, MapPin, Globe, Shield, Save, ArrowLeft } from "lucide-react";
-import { useAuth } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 const skillOptions = [
   "VISITS", "TRANSPORTATION", "ERRANDS", "TUTORING", 

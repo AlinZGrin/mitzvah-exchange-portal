@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Search, Filter, MapPin, Clock, User, Heart, Loader2 } from "lucide-react";
-import { useRequests, useAuth } from "@/lib/api";
+import { useRequests } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { MitzvahRequestWithRelations } from "@/lib/types";
 
 const categories = ["All", "VISITS", "TRANSPORTATION", "ERRANDS", "TUTORING", "MEALS", "HOUSEHOLD", "TECHNOLOGY", "OTHER"];
