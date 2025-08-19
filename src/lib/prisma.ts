@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { safeConsoleError } from './error-utils'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -16,7 +17,18 @@ function createPrismaClient() {
   })
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+export let prisma = globalForPrisma.prisma ?? createPrismaClient()
+
+// Function to recreate Prisma client (for prepared statement conflicts)
+function recreatePrismaClient() {
+  if (globalForPrisma.prisma) {
+    globalForPrisma.prisma.$disconnect().catch(() => {})
+  }
+  const newClient = createPrismaClient()
+  globalForPrisma.prisma = newClient
+  prisma = newClient
+  return newClient
+}
 
 // Helper function to sanitize error messages
 function sanitizeError(error: any): any {
@@ -49,34 +61,38 @@ export async function withPrisma<T>(
   maxRetries: number = 3
 ): Promise<T> {
   let lastError: any;
+  let currentClient = prisma;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // Try to ping the database first
-      await prisma.$connect()
-      const result = await operation(prisma)
+      await currentClient.$connect()
+      const result = await operation(currentClient)
       return result
     } catch (error: any) {
       lastError = error;
       
-      // If it's a prepared statement error, try to disconnect and reconnect
-      if (error.message?.includes('prepared statement') || error.code === 'P2024') {
-        console.log('Detected prepared statement conflict, reconnecting...')
-        await prisma.$disconnect()
-        await prisma.$connect()
+      // If it's a prepared statement error, recreate the client entirely
+      if (error.message?.includes('prepared statement') || error.code === 'P2024' || error.code === '42P05') {
+        safeConsoleError('Detected prepared statement conflict, recreating client...');
+        currentClient = recreatePrismaClient();
+        
+        // Wait a bit before retrying to avoid immediate conflicts
+        await new Promise(resolve => setTimeout(resolve, 100));
         continue;
       }
       
       // If it's a connection error and we have retries left, wait and retry
       if ((error.code === 'P1001' || error.message?.includes("Can't reach database")) && attempt < maxRetries) {
-        console.log(`Database connection failed (attempt ${attempt}/${maxRetries}), retrying in ${attempt}s...`);
+        safeConsoleError(`Database connection failed (attempt ${attempt}/${maxRetries}), retrying in ${attempt}s...`);
         await new Promise(resolve => setTimeout(resolve, attempt * 1000));
-        await prisma.$disconnect();
+        await currentClient.$disconnect();
         continue;
       }
       
       // If it's the last attempt or a non-retryable error, sanitize and throw
       const sanitizedError = sanitizeError(error);
+      safeConsoleError(`Database operation failed after ${attempt} attempts:`, sanitizedError);
       throw sanitizedError;
     }
   }

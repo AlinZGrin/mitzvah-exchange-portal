@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { withPrisma } from '@/lib/prisma';
 import { JSONUtils } from '@/lib/types';
 import { safeConsoleError } from '@/lib/error-utils';
 
@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
+    const existingUser = await withPrisma(async (prisma) => {
+      return await prisma.user.findUnique({
+        where: { email }
+      });
     });
 
     if (existingUser) {
@@ -36,28 +38,30 @@ export async function POST(request: NextRequest) {
                                    Math.random().toString(36).substring(2, 15);
 
     // Create user and profile in a transaction
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        emailVerificationToken,
-        profile: {
-          create: {
-            displayName,
-            city: city || null,
-            languages: JSONUtils.stringify([]),
-            skills: JSONUtils.stringify([]),
-            privacy: JSONUtils.stringify({
-              showEmail: false,
-              showPhone: false,
-              showExactLocation: false
-            })
+    const user = await withPrisma(async (prisma) => {
+      return await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          emailVerificationToken,
+          profile: {
+            create: {
+              displayName,
+              city: city || null,
+              languages: JSONUtils.stringify([]),
+              skills: JSONUtils.stringify([]),
+              privacy: JSONUtils.stringify({
+                showEmail: false,
+                showPhone: false,
+                showExactLocation: false
+              })
+            }
           }
+        },
+        include: {
+          profile: true
         }
-      },
-      include: {
-        profile: true
-      }
+      });
     });
 
     // TODO: Send verification email

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withPrisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { PointsUtils, JSONUtils } from '@/lib/types';
 import { safeConsoleError } from '@/lib/error-utils';
@@ -10,9 +10,11 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     const requestId = request.url.split('/').slice(-2)[0]; // Extract ID from URL
     
     // Check if request exists and is claimable
-    const mitzvahRequest = await prisma.mitzvahRequest.findUnique({
-      where: { id: requestId },
-      include: { assignment: true }
+    const mitzvahRequest = await withPrisma(async (prisma) => {
+      return await prisma.mitzvahRequest.findUnique({
+        where: { id: requestId },
+        include: { assignment: true }
+      });
     });
 
     if (!mitzvahRequest) {
@@ -44,50 +46,52 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     }
 
     // Create assignment and update request status in a transaction
-    const result = await prisma.$transaction(async (tx: any) => {
-      // Create assignment
-      const assignment = await tx.assignment.create({
-        data: {
-          requestId: requestId,
-          performerId: user.id,
-          status: 'CLAIMED',
-          proofPhotos: JSONUtils.stringify([])
-        },
-        include: {
-          performer: {
-            select: {
-              id: true,
-              profile: {
-                select: {
-                  displayName: true
+    const result = await withPrisma(async (prisma) => {
+      return await prisma.$transaction(async (tx: any) => {
+        // Create assignment
+        const assignment = await tx.assignment.create({
+          data: {
+            requestId: requestId,
+            performerId: user.id,
+            status: 'CLAIMED',
+            proofPhotos: JSONUtils.stringify([])
+          },
+          include: {
+            performer: {
+              select: {
+                id: true,
+                profile: {
+                  select: {
+                    displayName: true
+                  }
                 }
               }
-            }
-          },
-          request: {
-            include: {
-              owner: {
-                select: {
-                  id: true,
-                  profile: {
-                    select: {
-                      displayName: true
+            },
+            request: {
+              include: {
+                owner: {
+                  select: {
+                    id: true,
+                    profile: {
+                      select: {
+                        displayName: true
+                      }
                     }
                   }
                 }
               }
             }
           }
-        }
-      });
+        });
 
-      // Update request status
-      await tx.mitzvahRequest.update({
-        where: { id: requestId },
-        data: { status: 'CLAIMED' }
-      });
+        // Update request status
+        await tx.mitzvahRequest.update({
+          where: { id: requestId },
+          data: { status: 'CLAIMED' }
+        });
 
-      return assignment;
+        return assignment;
+      });
     });
 
     // TODO: Send notification to request owner

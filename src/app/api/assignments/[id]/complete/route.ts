@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withPrisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { PointsUtils, JSONUtils } from '@/lib/types';
 import { safeConsoleError } from '@/lib/error-utils';
@@ -11,24 +11,26 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     const { notes, proofPhotos = [] } = await request.json();
     
     // Check if assignment exists and belongs to user
-    const assignment = await prisma.assignment.findUnique({
-      where: { id: assignmentId },
-      include: {
-        request: {
-          include: {
-            owner: {
-              select: {
-                id: true,
-                profile: {
-                  select: {
-                    displayName: true
+    const assignment = await withPrisma(async (prisma) => {
+      return await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        include: {
+          request: {
+            include: {
+              owner: {
+                select: {
+                  id: true,
+                  profile: {
+                    select: {
+                      displayName: true
+                    }
                   }
                 }
               }
             }
           }
         }
-      }
+      });
     });
 
     if (!assignment) {
@@ -53,38 +55,40 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
     }
 
     // Update assignment and request status in a transaction
-    const result = await prisma.$transaction(async (tx: any) => {
-      // Update assignment
-      const updatedAssignment = await tx.assignment.update({
-        where: { id: assignmentId },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-          notes: notes || null,
-          proofPhotos: JSONUtils.stringify(proofPhotos)
-        },
-        include: {
-          request: true,
-          performer: {
-            select: {
-              id: true,
-              profile: {
-                select: {
-                  displayName: true
+    const result = await withPrisma(async (prisma) => {
+      return await prisma.$transaction(async (tx: any) => {
+        // Update assignment
+        const updatedAssignment = await tx.assignment.update({
+          where: { id: assignmentId },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            notes: notes || null,
+            proofPhotos: JSONUtils.stringify(proofPhotos)
+          },
+          include: {
+            request: true,
+            performer: {
+              select: {
+                id: true,
+                profile: {
+                  select: {
+                    displayName: true
+                  }
                 }
               }
             }
           }
-        }
-      });
+        });
 
-      // Update request status
-      await tx.mitzvahRequest.update({
-        where: { id: assignment.requestId },
-        data: { status: 'COMPLETED' }
-      });
+        // Update request status
+        await tx.mitzvahRequest.update({
+          where: { id: assignment.requestId },
+          data: { status: 'COMPLETED' }
+        });
 
-      return updatedAssignment;
+        return updatedAssignment;
+      });
     });
 
     // TODO: Send notification to request owner for confirmation
