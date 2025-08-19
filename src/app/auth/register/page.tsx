@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -14,6 +15,8 @@ export default function RegisterPage() {
     agreedToTerms: false,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { register } = useAuth();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,29 +30,36 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
     // Basic validation
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match");
+      setError("Passwords don't match");
       setIsLoading(false);
       return;
     }
     
     if (!formData.agreedToTerms) {
-      alert("Please agree to the terms and conditions");
+      setError("Please agree to the terms and conditions");
       setIsLoading(false);
       return;
     }
     
-    // TODO: Implement actual registration
-    console.log("Registration attempt:", formData);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await register({
+        email: formData.email,
+        password: formData.password,
+        displayName: formData.displayName,
+        city: formData.city,
+      });
+      
+      // Registration successful, redirect to dashboard
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
       setIsLoading(false);
-      // Redirect to email verification or dashboard
-      router.push("/auth/verify-email");
-    }, 1000);
+    }
   };
 
   return (
@@ -67,6 +77,12 @@ export default function RegisterPage() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div>
               <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
