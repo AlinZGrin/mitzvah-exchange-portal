@@ -10,6 +10,15 @@ const createTransporter = () => {
   const emailUser = process.env.EMAIL_SERVER_USER;
   const emailPass = process.env.EMAIL_SERVER_PASSWORD;
   
+  // Debug logging to see what environment variables are loaded
+  console.log('🔍 Email Environment Debug:');
+  console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`   EMAIL_SERVER_HOST: ${emailHost ? 'SET' : 'NOT SET'}`);
+  console.log(`   EMAIL_SERVER_USER: ${emailUser ? 'SET' : 'NOT SET'}`);
+  console.log(`   EMAIL_SERVER_PASSWORD: ${emailPass ? 'SET' : 'NOT SET'}`);
+  console.log(`   FORCE_EMAIL_CONSOLE_LOGGING: ${forceConsoleLogging}`);
+  console.log('---');
+  
   // If email is not configured, has placeholder values, or forced console logging
   if (forceConsoleLogging || 
       !emailHost || 
