@@ -25,7 +25,7 @@ const urgencyLevels = [
 
 export default function CreateRequestPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -44,7 +44,19 @@ export default function CreateRequestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Redirect if not authenticated
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="pt-16 min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not authenticated (after loading is complete)
   if (!isAuthenticated) {
     router.push("/auth/login");
     return null;
