@@ -348,6 +348,9 @@ export function useRequests(filters: Parameters<typeof apiClient.getRequests>[0]
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
 
+  // Serialize filters to create a stable dependency
+  const filtersKey = JSON.stringify(filters)
+
   const loadRequests = useCallback(async (newFilters: typeof filters = {}, isRetry = false) => {
     try {
       if (!isRetry) {
@@ -386,7 +389,8 @@ export function useRequests(filters: Parameters<typeof apiClient.getRequests>[0]
     } finally {
       setLoading(false)
     }
-  }, [filters, retryCount, requests.length])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey, retryCount, requests.length])
 
   useEffect(() => {
     loadRequests()
