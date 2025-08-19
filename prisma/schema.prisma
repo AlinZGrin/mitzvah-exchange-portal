@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,147 +10,178 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model assignments {
-  id               String           @id
-  requestId        String           @unique
-  performerId      String
-  status           String           @default("CLAIMED")
-  claimedAt        DateTime         @default(now())
-  completedAt      DateTime?
-  confirmedAt      DateTime?
-  notes            String?
-  proofPhotos      String?
-  users            users            @relation(fields: [performerId], references: [id], onDelete: Cascade)
-  mitzvah_requests mitzvah_requests @relation(fields: [requestId], references: [id], onDelete: Cascade)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   @default("MEMBER") // "MEMBER", "MODERATOR", "ADMIN"
+  status    String   @default("ACTIVE") // "ACTIVE", "SUSPENDED", "DELETED"
+  emailVerified Boolean @default(false)
+  emailVerificationToken String?
+  createdAt DateTime @default(now())
+  lastLogin DateTime?
+
+  profile   Profile?
+  ownedRequests MitzvahRequest[] @relation("RequestOwner")
+  assignments   Assignment[]
+  pointsEntries PointsLedger[]
+  sentMessages  Message[] @relation("MessageSender")
+  flags         Flag[] @relation("FlagReporter")
+  reviews       Review[] @relation("ReviewReviewer")
+  receivedReviews Review[] @relation("ReviewReviewee")
+  auditLogs     AuditLog[]
+
+  @@map("users")
 }
 
-model audit_logs {
-  id         String   @id
-  actorId    String
-  action     String
-  targetType String
-  targetId   String
-  metadata   String?
-  createdAt  DateTime @default(now())
-  users      users    @relation(fields: [actorId], references: [id], onDelete: Cascade)
+model Profile {
+  id       String @id @default(cuid())
+  userId   String @unique
+  displayName String?
+  bio      String?
+  city     String?
+  languages String? // JSON array of languages
+  skills   String? // JSON array of skills
+  availability String? // JSON object for availability schedule
+  privacy  String? // JSON object for privacy settings
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
 }
 
-model flags {
-  id               String           @id
-  targetType       String
-  targetId         String
-  reporterId       String
-  reasonCode       String
-  notes            String?
-  status           String           @default("PENDING")
-  createdAt        DateTime         @default(now())
-  users            users            @relation(fields: [reporterId], references: [id], onDelete: Cascade)
-  mitzvah_requests mitzvah_requests @relation(fields: [targetId], references: [id])
-}
-
-model messages {
-  id               String           @id
-  threadId         String
-  senderId         String
-  requestId        String
-  body             String
-  createdAt        DateTime         @default(now())
-  mitzvah_requests mitzvah_requests @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  users            users            @relation(fields: [senderId], references: [id], onDelete: Cascade)
-}
-
-model mitzvah_requests {
-  id              String       @id
-  ownerId         String
-  title           String
-  description     String
-  category        String
-  locationGeo     String?
-  locationDisplay String
+model MitzvahRequest {
+  id          String   @id @default(cuid())
+  ownerId     String
+  title       String
+  description String
+  category    String   // "VISITS", "TRANSPORTATION", "ERRANDS", "TUTORING", "MEALS", "HOUSEHOLD", "TECHNOLOGY", "OTHER"
+  status      String   @default("OPEN") // "OPEN", "CLAIMED", "COMPLETED", "CONFIRMED", "CANCELLED"
+  urgency     String   @default("NORMAL") // "LOW", "NORMAL", "HIGH", "URGENT"
+  location    String?  // Encrypted/hashed location
+  locationDisplay String? // Public location description
   timeWindowStart DateTime?
   timeWindowEnd   DateTime?
-  urgency         String       @default("NORMAL")
-  visibility      String       @default("PUBLIC")
-  requirements    String?
-  attachments     String?
-  status          String       @default("OPEN")
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime
-  assignments     assignments?
-  flags           flags[]
-  messages        messages[]
-  users           users        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  reviews         reviews[]
+  requirements    String? // JSON array of requirements
+  attachments     String? // JSON array of file URLs
+  estimatedDuration Int? // in minutes
+  maxPerformers     Int @default(1)
+  pointValue        Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  owner       User @relation("RequestOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  assignments Assignment[]
+  pointsEntries PointsLedger[]
+  messages    Message[]
+  flags       Flag[]
+  reviews     Review[]
+
+  @@map("mitzvah_requests")
 }
 
-model point_rules {
-  id            String   @id
-  category      String
-  basePoints    Int
-  modifiers     String
-  effectiveFrom DateTime @default(now())
-  createdAt     DateTime @default(now())
+model Assignment {
+  id          String    @id @default(cuid())
+  requestId   String    @unique
+  performerId String
+  status      String    @default("CLAIMED") // "CLAIMED", "COMPLETED", "CONFIRMED", "CANCELLED"
+  claimedAt   DateTime  @default(now())
+  completedAt DateTime?
+  confirmedAt DateTime?
+  notes       String?
+  proofPhotos String?   // JSON array of photo URLs
+
+  request   MitzvahRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  performer User          @relation(fields: [performerId], references: [id], onDelete: Cascade)
+
+  @@map("assignments")
 }
 
-model points_ledger {
-  id        String   @id
+model PointRule {
+  id          String @id @default(cuid())
+  category    String @unique // Must match MitzvahRequest categories
+  basePoints  Int
+  modifiers   String? // JSON object for point modifiers (urgency, distance, etc.)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("point_rules")
+}
+
+model PointsLedger {
+  id        String   @id @default(cuid())
   userId    String
   requestId String?
-  delta     Int
+  delta     Int      // Positive for earned, negative for spent
   reason    String
   createdAt DateTime @default(now())
-  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request MitzvahRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@map("points_ledger")
 }
 
-model profiles {
-  id             String   @id
-  userId         String   @unique
-  displayName    String
-  bio            String?
-  languages      String?
-  city           String?
-  zip            String?
-  photoUrl       String?
-  skills         String?
-  availability   String?
-  travelRadiusKm Int?
-  privacy        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime
-  users          users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Message {
+  id        String   @id @default(cuid())
+  requestId String
+  senderId  String
+  content   String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  request MitzvahRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sender  User           @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
 
-model reviews {
-  id                              String           @id
-  requestId                       String
-  reviewerId                      String
-  revieweeId                      String
-  stars                           Int              @default(5)
-  comment                         String?
-  visibility                      String           @default("PUBLIC")
-  createdAt                       DateTime         @default(now())
-  mitzvah_requests                mitzvah_requests @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  users_reviews_revieweeIdTousers users            @relation("reviews_revieweeIdTousers", fields: [revieweeId], references: [id], onDelete: Cascade)
-  users_reviews_reviewerIdTousers users            @relation("reviews_reviewerIdTousers", fields: [reviewerId], references: [id], onDelete: Cascade)
+model Review {
+  id         String @id @default(cuid())
+  requestId  String
+  reviewerId String
+  revieweeId String
+  stars      Int    // 1-5 rating
+  comment    String?
+  visibility String @default("PUBLIC") // "PUBLIC", "PRIVATE", "ANONYMOUS"
+  createdAt  DateTime @default(now())
+
+  request  MitzvahRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewer User          @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User          @relation("ReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }
 
-model users {
-  id                                String             @id
-  email                             String             @unique
-  password                          String
-  role                              String             @default("MEMBER")
-  status                            String             @default("ACTIVE")
-  emailVerified                     Boolean            @default(false)
-  emailVerificationToken            String?
-  createdAt                         DateTime           @default(now())
-  lastLogin                         DateTime?
-  assignments                       assignments[]
-  audit_logs                        audit_logs[]
-  flags                             flags[]
-  messages                          messages[]
-  mitzvah_requests                  mitzvah_requests[]
-  points_ledger                     points_ledger[]
-  profiles                          profiles?
-  reviews_reviews_revieweeIdTousers reviews[]          @relation("reviews_revieweeIdTousers")
-  reviews_reviews_reviewerIdTousers reviews[]          @relation("reviews_reviewerIdTousers")
+model Flag {
+  id         String   @id @default(cuid())
+  requestId  String?
+  reporterId String
+  targetType String   // "REQUEST", "USER", "REVIEW"
+  targetId   String
+  reason     String
+  status     String   @default("PENDING") // "PENDING", "REVIEWED", "RESOLVED"
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  request  MitzvahRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reporter User           @relation("FlagReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@map("flags")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String   // "CREATE", "UPDATE", "DELETE", "LOGIN", etc.
+  targetType String   // "USER", "REQUEST", "ASSIGNMENT", etc.
+  targetId   String
+  metadata   String?  // JSON object with additional details
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
 }
