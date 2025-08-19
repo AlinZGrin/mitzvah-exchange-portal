@@ -17,7 +17,10 @@ if (!global.__prismaLastRecreation) {
   global.__prismaLastRecreation = 0
 }
 if (!global.__prismaConflictMode) {
-  global.__prismaConflictMode = false
+  // Enable conflict mode by default in production or if DATABASE_URL suggests Supabase
+  const isProduction = process.env.NODE_ENV === 'production'
+  const isSupabase = process.env.DATABASE_URL?.includes('supabase') || false
+  global.__prismaConflictMode = isProduction || isSupabase
 }
 
 // Create a function to get or create prisma client with connection pooling
@@ -40,8 +43,8 @@ function createPrismaClient(forceNewConnection: boolean = false, disablePrepared
   // Add connection pool configuration for better resource management
   if (databaseUrl) {
     const separator = databaseUrl.includes('?') ? '&' : '?';
-    // Increase connection limits and timeout for serverless
-    databaseUrl = `${databaseUrl}${separator}connection_limit=20&pool_timeout=30&connect_timeout=60`;
+    // Optimized for Supabase/serverless - more conservative settings
+    databaseUrl = `${databaseUrl}${separator}connection_limit=10&pool_timeout=20&connect_timeout=30&pgbouncer=true`;
   }
   
   return new PrismaClient({
@@ -57,9 +60,9 @@ function createPrismaClient(forceNewConnection: boolean = false, disablePrepared
 // Get or create the singleton Prisma client
 function getPrismaClient(): PrismaClient {
   if (!global.__prisma) {
-    global.__prisma = createPrismaClient()
+    global.__prisma = createPrismaClient(false, global.__prismaConflictMode)
     global.__prismaClientId = (global.__prismaClientId || 0) + 1
-    safeConsoleError(`Created initial Prisma client (ID: ${global.__prismaClientId})`)
+    safeConsoleError(`Created initial Prisma client (ID: ${global.__prismaClientId}, conflict mode: ${global.__prismaConflictMode})`)
   }
   return global.__prisma
 }

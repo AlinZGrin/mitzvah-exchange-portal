@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withPrisma } from '@/lib/prisma';
 
 export interface AuthenticatedUser {
   id: string;
@@ -35,9 +35,11 @@ export async function authenticateUser(request: NextRequest): Promise<Authentica
     }
 
     // Get user from database to ensure they still exist and are active
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, email: true, role: true, status: true }
+    const user = await withPrisma(async (prisma) => {
+      return await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, email: true, role: true, status: true }
+      });
     });
 
     if (!user || user.status !== 'ACTIVE') {
