@@ -2,18 +2,24 @@ import nodemailer from 'nodemailer';
 
 // Email transporter configuration
 const createTransporter = () => {
-  if (process.env.NODE_ENV === 'development') {
-    // For development, log to console instead of sending real emails
+  // Check if email is properly configured
+  const emailHost = process.env.EMAIL_SERVER_HOST;
+  const emailUser = process.env.EMAIL_SERVER_USER;
+  const emailPass = process.env.EMAIL_SERVER_PASSWORD;
+  
+  // If email is not configured, fall back to console logging
+  if (!emailHost || !emailUser || !emailPass) {
+    console.log('⚠️  Email service not configured - falling back to console logging');
     return null;
   }
 
   return nodemailer.createTransport({
-    host: process.env.EMAIL_SERVER_HOST,
+    host: emailHost,
     port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.EMAIL_SERVER_USER,
-      pass: process.env.EMAIL_SERVER_PASSWORD,
+      user: emailUser,
+      pass: emailPass,
     },
   });
 };
@@ -97,14 +103,15 @@ export async function sendVerificationEmail(
   `;
 
   if (!transporter) {
-    // Development mode - log to console
-    console.log('📧 Email Verification (Development Mode)');
+    // Email not configured - log to console instead
+    console.log('📧 Email Verification (Email Service Not Configured)');
     console.log('To:', email);
     console.log('Subject: Verify Your Email - Mitzvah Exchange');
     console.log('Verification URL:', verificationUrl);
     console.log('Token:', token);
+    console.log('Note: Configure EMAIL_SERVER_HOST, EMAIL_SERVER_USER, and EMAIL_SERVER_PASSWORD to send real emails');
     console.log('---');
-    return { success: true, message: 'Email logged to console (development mode)' };
+    return { success: true, message: 'Email logged to console (email service not configured)' };
   }
 
   try {
@@ -183,10 +190,11 @@ export async function sendWelcomeEmail(email: string, displayName: string) {
   `;
 
   if (!transporter) {
-    console.log('📧 Welcome Email (Development Mode)');
+    console.log('📧 Welcome Email (Email Service Not Configured)');
     console.log('To:', email);
     console.log('Subject: Welcome to Mitzvah Exchange!');
-    return { success: true, message: 'Welcome email logged to console (development mode)' };
+    console.log('Note: Configure EMAIL_SERVER_HOST, EMAIL_SERVER_USER, and EMAIL_SERVER_PASSWORD to send real emails');
+    return { success: true, message: 'Welcome email logged to console (email service not configured)' };
   }
 
   try {
