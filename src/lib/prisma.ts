@@ -1,25 +1,22 @@
 import { PrismaClient } from '@prisma/client'
 import { safeConsoleError } from './error-utils'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  clientId: number
-  connectionCount: number
-  lastRecreation: number
+// Global singleton pattern for Prisma client
+declare global {
+  var __prisma: PrismaClient | undefined
+  var __prismaClientId: number | undefined
+  var __prismaLastRecreation: number | undefined
 }
 
 // Initialize tracking variables
-if (!globalForPrisma.clientId) {
-  globalForPrisma.clientId = 0
+if (!global.__prismaClientId) {
+  global.__prismaClientId = 0
 }
-if (!globalForPrisma.connectionCount) {
-  globalForPrisma.connectionCount = 0
-}
-if (!globalForPrisma.lastRecreation) {
-  globalForPrisma.lastRecreation = 0
+if (!global.__prismaLastRecreation) {
+  global.__prismaLastRecreation = 0
 }
 
-// Create a function to get or create prisma client
+// Create a function to get or create prisma client with connection pooling
 function createPrismaClient() {
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
@@ -31,24 +28,34 @@ function createPrismaClient() {
   })
 }
 
-export let prisma = globalForPrisma.prisma ?? createPrismaClient()
+// Get or create the singleton Prisma client
+function getPrismaClient(): PrismaClient {
+  if (!global.__prisma) {
+    global.__prisma = createPrismaClient()
+    global.__prismaClientId = (global.__prismaClientId || 0) + 1
+    safeConsoleError(`Created initial Prisma client (ID: ${global.__prismaClientId})`)
+  }
+  return global.__prisma
+}
+
+export let prisma = getPrismaClient()
 
 // Function to recreate Prisma client (for prepared statement conflicts)
 async function recreatePrismaClient() {
   const now = Date.now()
-  const timeSinceLastRecreation = now - (globalForPrisma.lastRecreation || 0)
+  const timeSinceLastRecreation = now - (global.__prismaLastRecreation || 0)
   
   // Don't recreate too frequently (minimum 5 seconds between recreations)
   if (timeSinceLastRecreation < 5000) {
     safeConsoleError(`Skipping client recreation - too recent (${timeSinceLastRecreation}ms ago)`)
-    return globalForPrisma.prisma || prisma
+    return global.__prisma || getPrismaClient()
   }
   
   try {
     // Force disconnect existing client with proper cleanup
-    if (globalForPrisma.prisma) {
+    if (global.__prisma) {
       safeConsoleError('Disconnecting existing Prisma client...')
-      globalForPrisma.prisma.$disconnect().catch(() => {
+      global.__prisma.$disconnect().catch(() => {
         // Ignore disconnect errors, we're creating a new client anyway
       })
       
@@ -61,24 +68,24 @@ async function recreatePrismaClient() {
   }
   
   // Increment client ID to track recreations
-  globalForPrisma.clientId = (globalForPrisma.clientId || 0) + 1
-  globalForPrisma.lastRecreation = now
+  global.__prismaClientId = (global.__prismaClientId || 0) + 1
+  global.__prismaLastRecreation = now
   
   // Create a completely new client instance
   const newClient = createPrismaClient()
   
   // Add a marker to the client for debugging
   Object.defineProperty(newClient, '_clientId', {
-    value: globalForPrisma.clientId,
+    value: global.__prismaClientId,
     writable: false,
     enumerable: false
   })
   
-  // Update both global reference and exported variable
-  globalForPrisma.prisma = newClient
+  // Update global reference and exported variable
+  global.__prisma = newClient
   prisma = newClient
   
-  safeConsoleError(`Created new Prisma client (ID: ${globalForPrisma.clientId}) after ${timeSinceLastRecreation}ms`)
+  safeConsoleError(`Created new Prisma client (ID: ${global.__prismaClientId}) after ${timeSinceLastRecreation}ms`)
   
   return newClient
 }
@@ -114,7 +121,7 @@ export async function withPrisma<T>(
   maxRetries: number = 3
 ): Promise<T> {
   let lastError: any;
-  let currentClient = prisma;
+  let currentClient = getPrismaClient(); // Always start with the singleton
   let recreationCount = 0;
   const maxRecreations = 1; // Reduced to prevent connection exhaustion
   
@@ -136,18 +143,35 @@ export async function withPrisma<T>(
                                error.message?.includes('ConnectorError');
       
       const isMaxConnectionsError = error.message?.includes('Max client connections reached') ||
-                                  error.message?.includes('too many clients');
+                                  error.message?.includes('too many clients') ||
+                                  error.name === 'PrismaClientInitializationError';
       
-      // Handle max connections error with special logic
+      // Handle max connections error with aggressive cleanup
       if (isMaxConnectionsError) {
-        safeConsoleError(`Max connections reached (attempt ${attempt}/${maxRetries}). Waiting longer before retry...`);
+        safeConsoleError(`Max connections reached (attempt ${attempt}/${maxRetries}). Performing aggressive cleanup...`);
         
-        // Don't recreate client for max connections - just wait and reuse
-        const waitTime = 2000 + (attempt * 1000); // Wait 2-5 seconds
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        // Force cleanup of current client
+        try {
+          await currentClient.$disconnect();
+          safeConsoleError('Disconnected current client');
+        } catch (disconnectError) {
+          safeConsoleError('Error disconnecting client:', disconnectError);
+        }
         
+        // If we have retries left, wait longer and try with a fresh client
         if (attempt < maxRetries) {
-          continue; // Retry with same client
+          const waitTime = 3000 + (attempt * 2000); // Wait 3-7 seconds
+          safeConsoleError(`Waiting ${waitTime}ms before retry with fresh client...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          
+          // Force a fresh client (but don't count as recreation)
+          global.__prisma = createPrismaClient();
+          global.__prismaClientId = (global.__prismaClientId || 0) + 1;
+          prisma = global.__prisma;
+          currentClient = global.__prisma;
+          
+          safeConsoleError(`Created emergency client (ID: ${global.__prismaClientId}) due to connection exhaustion`);
+          continue;
         }
       }
       // Handle other database errors with recreation
@@ -184,5 +208,20 @@ export async function withPrisma<T>(
   throw sanitizeError(lastError);
 }
 
-// For development, avoid creating multiple instances
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Utility function for connection cleanup (can be called manually if needed)
+export async function cleanupPrismaConnections() {
+  try {
+    if (global.__prisma) {
+      safeConsoleError('Manually cleaning up Prisma connections...')
+      await global.__prisma.$disconnect()
+      safeConsoleError('Prisma connections cleaned up')
+    }
+  } catch (error) {
+    safeConsoleError('Error during manual cleanup:', error)
+  }
+}
+
+// Ensure we have a global client instance
+if (!global.__prisma) {
+  global.__prisma = getPrismaClient()
+}
