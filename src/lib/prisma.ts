@@ -37,6 +37,13 @@ function createPrismaClient(forceNewConnection: boolean = false, disablePrepared
     databaseUrl = `${databaseUrl}${separator}prepared_statements=false&statement_cache_size=0`;
   }
   
+  // Add connection pool configuration for better resource management
+  if (databaseUrl) {
+    const separator = databaseUrl.includes('?') ? '&' : '?';
+    // Increase connection limits and timeout for serverless
+    databaseUrl = `${databaseUrl}${separator}connection_limit=20&pool_timeout=30&connect_timeout=60`;
+  }
+  
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
     datasources: {
@@ -155,9 +162,12 @@ export async function withPrisma<T>(
       
       // Check for different types of errors
       const isPreparedStatementError = error.message?.includes('prepared statement') || 
-                                     error.code === 'P2024' || 
                                      error.code === '42P05' ||
                                      error.message?.includes('already exists');
+      
+      const isConnectionPoolError = error.code === 'P2024' || 
+                                  error.message?.includes('connection pool') ||
+                                  error.message?.includes('Timed out fetching');
       
       const isConnectionError = error.code === 'P1001' || 
                                error.message?.includes("Can't reach database") ||
@@ -167,8 +177,36 @@ export async function withPrisma<T>(
                                   error.message?.includes('too many clients') ||
                                   error.name === 'PrismaClientInitializationError';
       
+      // Handle connection pool timeout with aggressive cleanup
+      if (isConnectionPoolError) {
+        safeConsoleError(`Connection pool timeout detected (attempt ${attempt}/${maxRetries}). Performing connection cleanup...`);
+        
+        // Force disconnect and recreate to clear connection pool
+        try {
+          await currentClient.$disconnect();
+          safeConsoleError('Force disconnected client to clear connection pool');
+        } catch (disconnectError) {
+          safeConsoleError('Error disconnecting client:', disconnectError);
+        }
+        
+        if (attempt < maxRetries) {
+          // Wait longer for connection pool to reset
+          const waitTime = 3000 + (attempt * 2000); // 3-7 seconds
+          safeConsoleError(`Waiting ${waitTime}ms for connection pool to reset...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          
+          // Create fresh client with improved connection pool settings
+          global.__prisma = createPrismaClient(true, global.__prismaConflictMode);
+          global.__prismaClientId = (global.__prismaClientId || 0) + 1;
+          prisma = global.__prisma;
+          currentClient = global.__prisma;
+          
+          safeConsoleError(`Created new client (ID: ${global.__prismaClientId}) for connection pool reset`);
+          continue;
+        }
+      }
       // Handle prepared statement errors with immediate recreation and longer wait
-      if (isPreparedStatementError) {
+      else if (isPreparedStatementError) {
         // Permanently enable conflict mode
         global.__prismaConflictMode = true
         safeConsoleError(`Prepared statement conflict detected (attempt ${attempt}/${maxRetries}). Enabling permanent conflict mode and recreating client...`);
