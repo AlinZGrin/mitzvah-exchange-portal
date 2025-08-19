@@ -94,6 +94,20 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Login error:', error);
+    
+    // Handle specific Prisma errors
+    if (error instanceof Error) {
+      if (error.message.includes('prepared statement') || error.message.includes('ConnectorError')) {
+        console.error('Database connection error, retrying...');
+        // Force disconnect and reconnect
+        try {
+          await prisma.$disconnect();
+        } catch (disconnectError) {
+          console.error('Disconnect error:', disconnectError);
+        }
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
