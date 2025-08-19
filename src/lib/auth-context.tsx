@@ -90,9 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setStats(null)
       
       const response = await apiClient.register(userData)
-      const userWithStats = await apiClient.getCurrentUser()
-      setUser(userWithStats.user)
-      setStats(userWithStats.stats)
+      // Don't try to get current user after registration - user needs to verify email first
       return response
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed'

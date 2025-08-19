@@ -53,8 +53,18 @@ export async function sendVerificationEmail(
   displayName: string
 ) {
   const transporter = createTransporter();
-  const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const verificationUrl = `${appUrl}/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+  
+  // Use production URL for Vercel, localhost for development
+  let appUrl;
+  if (process.env.NODE_ENV === 'production') {
+    appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'https://mitzvah-exchange-portal.vercel.app';
+  } else {
+    appUrl = 'http://localhost:3000';
+  }
+  
+  const verificationUrl = `${appUrl}/api/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+  
+  console.log(`🔗 Verification URL: ${verificationUrl}`);
 
   const emailHtml = `
     <!DOCTYPE html>
@@ -70,12 +80,15 @@ export async function sendVerificationEmail(
         .button { 
           display: inline-block; 
           background: #2563eb; 
-          color: white; 
+          color: white !important; 
           padding: 12px 24px; 
           text-decoration: none; 
           border-radius: 5px; 
-          margin: 20px 0; 
+          margin: 20px 0;
+          font-weight: bold;
         }
+        .button:visited { color: white !important; }
+        .button:hover { color: white !important; }
         .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
       </style>
     </head>

@@ -16,6 +16,7 @@ export default function RegisterPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const { register } = useAuth();
   const router = useRouter();
 
@@ -53,8 +54,11 @@ export default function RegisterPage() {
         city: formData.city,
       });
       
-      // Registration successful, redirect to email verification
-      router.push("/auth/verify-email");
+      // Registration successful, show success message and redirect to verification page
+      setSuccess("Registration successful! Please check your email for a verification link.");
+      setTimeout(() => {
+        router.push("/auth/verify-email");
+      }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -80,6 +84,12 @@ export default function RegisterPage() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+              {success}
             </div>
           )}
           
