@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, MapPin, Clock, Users, AlertCircle, Camera } from "lucide-react";
+import { Calendar, MapPin, Clock, AlertCircle, Camera } from "lucide-react";
 import { useAuth } from "@/lib/api";
 
 const categories = [
@@ -36,7 +36,6 @@ export default function CreateRequestPage() {
     timeWindowEnd: "",
     isFlexible: true,
     requirements: [] as string[],
-    visibility: "PUBLIC",
     recipientDetails: "",
     language: "",
     isRecurring: false,
@@ -383,23 +382,6 @@ export default function CreateRequestPage() {
                     <option value="spanish">Spanish</option>
                     <option value="hebrew">Hebrew</option>
                     <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="visibility" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Users className="inline h-4 w-4 mr-1" />
-                    Visibility
-                  </label>
-                  <select
-                    id="visibility"
-                    name="visibility"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.visibility}
-                    onChange={handleChange}
-                  >
-                    <option value="PUBLIC">Public - Visible to all community members</option>
-                    <option value="INVITE_ONLY">Invite Only - Share via link with specific people</option>
                   </select>
                 </div>
 
