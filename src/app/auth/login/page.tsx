@@ -9,18 +9,58 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const { login, loading } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNeedsVerification(false);
     
     try {
       await login(email, password);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const errorMessage = err instanceof Error ? err.message : "Login failed";
+      setError(errorMessage);
+      
+      // Check if it's an email verification error
+      if (errorMessage.includes("Email not verified")) {
+        setNeedsVerification(true);
+      }
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError("Please enter your email address first");
+      return;
+    }
+
+    setResendingVerification(true);
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setError("Verification email sent! Please check your inbox.");
+        setNeedsVerification(false);
+      } else {
+        setError(data.error || "Failed to resend verification email");
+      }
+    } catch (err) {
+      setError("Network error occurred while resending email");
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -90,6 +130,28 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </div>
+
+          {needsVerification && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+              <p className="text-yellow-800 text-sm mb-2">
+                Your email address hasn&apos;t been verified yet. Please check your inbox for a verification email.
+              </p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendingVerification}
+                className="text-blue-600 hover:text-blue-800 text-sm underline disabled:opacity-50"
+              >
+                {resendingVerification ? "Sending..." : "Resend verification email"}
+              </button>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
         </form>
 
         <div className="mt-8 border-t border-gray-200 pt-6">

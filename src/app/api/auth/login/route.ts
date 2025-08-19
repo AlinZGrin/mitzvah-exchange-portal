@@ -41,6 +41,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        { 
+          error: 'Email not verified. Please check your email and verify your account.',
+          requiresVerification: true,
+          email: user.email
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if user is active
     if (user.status !== 'ACTIVE') {
       return NextResponse.json(

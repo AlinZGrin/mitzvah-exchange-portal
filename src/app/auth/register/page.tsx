@@ -53,8 +53,8 @@ export default function RegisterPage() {
         city: formData.city,
       });
       
-      // Registration successful, redirect to dashboard
-      router.push("/dashboard");
+      // Registration successful, redirect to email verification
+      router.push("/auth/verify-email");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

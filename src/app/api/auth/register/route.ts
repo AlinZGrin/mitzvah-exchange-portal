@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { withPrisma } from '@/lib/prisma';
 import { JSONUtils } from '@/lib/types';
 import { safeConsoleError } from '@/lib/error-utils';
+import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,8 +65,14 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    // TODO: Send verification email
-    console.log(`Verification token for ${email}: ${emailVerificationToken}`);
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, emailVerificationToken, displayName);
+      console.log(`Verification email sent to ${email}`);
+    } catch (emailError) {
+      // Don't fail registration if email fails, just log it
+      console.error('Failed to send verification email:', emailError);
+    }
 
     // Return success (don't include password or token)
     const { password: _, emailVerificationToken: __, ...userWithoutSensitiveData } = user;
