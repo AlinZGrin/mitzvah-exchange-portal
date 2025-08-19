@@ -86,6 +86,13 @@ class ApiClient {
       headers
     })
 
+    // Handle 401 responses by clearing the token
+    if (response.status === 401) {
+      this.setToken(null)
+      const error = await response.json().catch(() => ({ error: 'Authentication required' }))
+      throw new Error(error.error || 'Authentication required')
+    }
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }))
       throw new Error(error.error || `HTTP ${response.status}`)
@@ -226,9 +233,12 @@ export function useAuth() {
         }
       } catch (err) {
         console.error('Auth check failed:', err)
-        apiClient.setToken(null)
-        setUser(null)
-        setStats(null)
+        // Only clear auth state if it's an auth-related error
+        if (err instanceof Error && (err.message.includes('Authentication') || err.message.includes('401'))) {
+          apiClient.setToken(null)
+          setUser(null)
+          setStats(null)
+        }
       } finally {
         setLoading(false)
       }

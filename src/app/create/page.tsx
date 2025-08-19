@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, MapPin, Clock, AlertCircle, Camera } from "lucide-react";
-import { useAuth } from "@/lib/api";
+import { useAuth, apiClient } from "@/lib/api";
 
 const categories = [
   { id: "VISITS", name: "Visits", icon: "👥", description: "Companionship and social visits" },
@@ -79,24 +79,20 @@ export default function CreateRequestPage() {
         attachments: []
       };
 
-      const response = await fetch("/api/requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(requestData),
+      const result = await apiClient.createRequest({
+        title: requestData.title,
+        description: requestData.description,
+        category: requestData.category,
+        urgency: requestData.urgency as "LOW" | "NORMAL" | "HIGH",
+        locationDisplay: requestData.locationDisplay,
+        timeWindowStart: requestData.timeWindowStart || undefined,
+        timeWindowEnd: requestData.timeWindowEnd || undefined,
+        requirements: requestData.requirements,
+        attachments: requestData.attachments
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        router.push("/dashboard?tab=requests");
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to create request");
-      }
+      router.push("/dashboard?tab=requests");
     } catch (error) {
-      setError("Network error. Please try again.");
+      setError(error instanceof Error ? error.message : "Failed to create request");
     } finally {
       setIsLoading(false);
     }
