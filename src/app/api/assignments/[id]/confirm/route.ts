@@ -4,6 +4,77 @@ import { requireAuth } from '@/lib/auth';
 import { PointsUtils, JSONUtils } from '@/lib/types';
 import { safeConsoleError } from '@/lib/error-utils';
 
+// Helper function to create the next recurring request
+async function createNextRecurringRequest(tx: any, originalRequest: any) {
+  // Check if we should create another instance
+  if (originalRequest.recurrenceEndDate) {
+    const endDate = new Date(originalRequest.recurrenceEndDate);
+    if (new Date() >= endDate) {
+      return; // Don't create if we've reached the end date
+    }
+  }
+
+  // Calculate next time window if the original had one
+  let nextTimeWindowStart = null;
+  let nextTimeWindowEnd = null;
+  
+  if (originalRequest.timeWindowStart) {
+    const originalStart = new Date(originalRequest.timeWindowStart);
+    const originalEnd = originalRequest.timeWindowEnd ? new Date(originalRequest.timeWindowEnd) : null;
+    
+    // Calculate interval in days
+    let intervalDays = 7; // Default to weekly
+    switch (originalRequest.recurrenceType) {
+      case 'WEEKLY':
+        intervalDays = 7;
+        break;
+      case 'BIWEEKLY':
+        intervalDays = 14;
+        break;
+      case 'MONTHLY':
+        intervalDays = 30;
+        break;
+      case 'CUSTOM':
+        intervalDays = originalRequest.recurrenceInterval || 7;
+        break;
+    }
+    
+    // Add interval to get next occurrence
+    nextTimeWindowStart = new Date(originalStart);
+    nextTimeWindowStart.setDate(nextTimeWindowStart.getDate() + intervalDays);
+    
+    if (originalEnd) {
+      nextTimeWindowEnd = new Date(originalEnd);
+      nextTimeWindowEnd.setDate(nextTimeWindowEnd.getDate() + intervalDays);
+    }
+  }
+
+  // Create the new recurring request
+  await tx.mitzvahRequest.create({
+    data: {
+      ownerId: originalRequest.ownerId,
+      title: originalRequest.title,
+      description: originalRequest.description,
+      category: originalRequest.category,
+      urgency: originalRequest.urgency,
+      locationDisplay: originalRequest.locationDisplay,
+      timeWindowStart: nextTimeWindowStart,
+      timeWindowEnd: nextTimeWindowEnd,
+      requirements: originalRequest.requirements,
+      attachments: originalRequest.attachments,
+      estimatedDuration: originalRequest.estimatedDuration,
+      maxPerformers: originalRequest.maxPerformers,
+      pointValue: originalRequest.pointValue,
+      isRecurring: true,
+      recurrenceType: originalRequest.recurrenceType,
+      recurrenceInterval: originalRequest.recurrenceInterval,
+      recurrenceEndDate: originalRequest.recurrenceEndDate,
+      parentRequestId: originalRequest.parentRequestId || originalRequest.id,
+      status: 'OPEN'
+    }
+  });
+}
+
 // POST /api/assignments/[id]/confirm - Confirm assignment completion
 export const POST = requireAuth(async (request: NextRequest, user) => {
   try {
@@ -87,6 +158,15 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
           where: { id: assignment.requestId },
           data: { status: 'CONFIRMED' }
         });
+
+        // Check if this is a recurring request and create next instance
+        const fullRequest = await tx.mitzvahRequest.findUnique({
+          where: { id: assignment.requestId }
+        });
+        
+        if (fullRequest && (fullRequest as any).isRecurring) {
+          await createNextRecurringRequest(tx, fullRequest);
+        }
 
         // Award points to performer
         await tx.pointsLedger.create({
