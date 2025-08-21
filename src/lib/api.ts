@@ -31,6 +31,11 @@ export interface MitzvahRequest {
   timeWindowStart?: string
   timeWindowEnd?: string
   requirements: string[]
+  isRecurring?: boolean
+  recurrenceType?: string
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
+  parentRequestId?: string
   owner: {
     profile: {
       displayName: string
@@ -195,6 +200,10 @@ class ApiClient {
     timeWindowEnd?: string
     requirements?: string[]
     attachments?: string[]
+    isRecurring?: boolean
+    recurrenceType?: string
+    recurrenceInterval?: number
+    recurrenceEndDate?: string
   }) {
     return this.request('/requests', {
       method: 'POST',

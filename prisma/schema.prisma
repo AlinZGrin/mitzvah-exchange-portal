@@ -66,6 +66,11 @@ model MitzvahRequest {
   estimatedDuration Int?
   maxPerformers     Int            @default(1)
   pointValue        Int?
+  isRecurring       Boolean        @default(false)
+  recurrenceType    String?        // "WEEKLY", "BIWEEKLY", "MONTHLY", "CUSTOM"
+  recurrenceInterval Int?           // For custom intervals (e.g., every X days)
+  recurrenceEndDate DateTime?      // When recurring stops
+  parentRequestId   String?        // Link to original recurring request
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   assignment        Assignment?
@@ -74,6 +79,8 @@ model MitzvahRequest {
   owner             User           @relation("RequestOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   pointsEntries     PointsLedger[]
   reviews           Review[]
+  parentRequest     MitzvahRequest? @relation("RecurringRequests", fields: [parentRequestId], references: [id])
+  childRequests     MitzvahRequest[] @relation("RecurringRequests")
 
   @@map("mitzvah_requests")
 }

@@ -40,6 +40,9 @@ export default function CreateRequestPage() {
     recipientDetails: "",
     language: "",
     isRecurring: false,
+    recurrenceType: "",
+    recurrenceInterval: "",
+    recurrenceEndDate: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,7 +80,11 @@ export default function CreateRequestPage() {
         timeWindowStart: formData.isFlexible ? null : formData.timeWindowStart || null,
         timeWindowEnd: formData.isFlexible ? null : formData.timeWindowEnd || null,
         requirements: formData.requirements,
-        attachments: []
+        attachments: [],
+        isRecurring: formData.isRecurring,
+        recurrenceType: formData.isRecurring ? formData.recurrenceType : null,
+        recurrenceInterval: formData.isRecurring && formData.recurrenceType === 'CUSTOM' ? parseInt(formData.recurrenceInterval) || null : null,
+        recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? formData.recurrenceEndDate : null
       };
 
       const result = await apiClient.createRequest({
@@ -89,7 +96,11 @@ export default function CreateRequestPage() {
         timeWindowStart: requestData.timeWindowStart || undefined,
         timeWindowEnd: requestData.timeWindowEnd || undefined,
         requirements: requestData.requirements,
-        attachments: requestData.attachments
+        attachments: requestData.attachments,
+        isRecurring: requestData.isRecurring,
+        recurrenceType: requestData.recurrenceType || undefined,
+        recurrenceInterval: requestData.recurrenceInterval || undefined,
+        recurrenceEndDate: requestData.recurrenceEndDate || undefined
       });
       router.push("/dashboard?tab=requests");
     } catch (error) {
@@ -395,6 +406,69 @@ export default function CreateRequestPage() {
                     This is a recurring need (weekly, monthly, etc.)
                   </label>
                 </div>
+
+                {/* Recurring Details */}
+                {formData.isRecurring && (
+                  <div className="ml-6 space-y-4 border-l-4 border-blue-200 pl-4">
+                    <div>
+                      <label htmlFor="recurrenceType" className="block text-sm font-medium text-gray-700 mb-2">
+                        How often?
+                      </label>
+                      <select
+                        id="recurrenceType"
+                        name="recurrenceType"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.recurrenceType || ''}
+                        onChange={handleChange}
+                        required={formData.isRecurring}
+                      >
+                        <option value="">Select frequency</option>
+                        <option value="WEEKLY">Weekly</option>
+                        <option value="BIWEEKLY">Every two weeks</option>
+                        <option value="MONTHLY">Monthly</option>
+                        <option value="CUSTOM">Custom interval</option>
+                      </select>
+                    </div>
+
+                    {formData.recurrenceType === 'CUSTOM' && (
+                      <div>
+                        <label htmlFor="recurrenceInterval" className="block text-sm font-medium text-gray-700 mb-2">
+                          Every how many days?
+                        </label>
+                        <input
+                          type="number"
+                          id="recurrenceInterval"
+                          name="recurrenceInterval"
+                          min="1"
+                          max="365"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={formData.recurrenceInterval || ''}
+                          onChange={handleChange}
+                          placeholder="e.g., 10 for every 10 days"
+                          required={formData.recurrenceType === 'CUSTOM'}
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="recurrenceEndDate" className="block text-sm font-medium text-gray-700 mb-2">
+                        End date (optional)
+                      </label>
+                      <input
+                        type="date"
+                        id="recurrenceEndDate"
+                        name="recurrenceEndDate"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.recurrenceEndDate || ''}
+                        onChange={handleChange}
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Leave blank for ongoing recurring requests
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

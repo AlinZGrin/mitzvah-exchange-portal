@@ -114,7 +114,10 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
       urgency = 'NORMAL',
       requirements = [],
       language,
-      isRecurring = false
+      isRecurring = false,
+      recurrenceType,
+      recurrenceInterval,
+      recurrenceEndDate
     } = data;
 
     // Validate required fields
@@ -123,6 +126,23 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
         { error: 'Title, description, category, and location are required' },
         { status: 400 }
       );
+    }
+
+    // Validate recurring fields if isRecurring is true
+    if (isRecurring) {
+      if (!recurrenceType || !['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'CUSTOM'].includes(recurrenceType)) {
+        return NextResponse.json(
+          { error: 'Valid recurrenceType is required for recurring requests' },
+          { status: 400 }
+        );
+      }
+      
+      if (recurrenceType === 'CUSTOM' && (!recurrenceInterval || recurrenceInterval < 1)) {
+        return NextResponse.json(
+          { error: 'Valid recurrenceInterval is required for custom recurring requests' },
+          { status: 400 }
+        );
+      }
     }
 
     const newRequest = await withPrisma(async (prisma) => {
@@ -138,7 +158,11 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
           timeWindowEnd: timeWindowEnd ? new Date(timeWindowEnd) : null,
           urgency,
           requirements: JSONUtils.stringify(requirements),
-          attachments: JSONUtils.stringify([])
+          attachments: JSONUtils.stringify([]),
+          isRecurring,
+          recurrenceType: isRecurring ? recurrenceType : null,
+          recurrenceInterval: isRecurring && recurrenceType === 'CUSTOM' ? recurrenceInterval : null,
+          recurrenceEndDate: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate) : null
         },
         include: {
           owner: {
