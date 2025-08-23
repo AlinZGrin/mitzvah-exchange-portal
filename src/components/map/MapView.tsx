@@ -271,6 +271,11 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         {request.owner?.profile?.displayName || 'Community Member'}
+                        {(() => {
+                          const owner = request.owner;
+                          const privacy = owner?.profile?.privacy ? JSON.parse(owner.profile.privacy) : { showEmail: false };
+                          return privacy.showEmail && owner?.profile?.email ? ` (${owner.profile.email})` : '';
+                        })()}
                       </div>
                       <div className="flex items-center gap-1">
                         <Heart className="h-3 w-3" />

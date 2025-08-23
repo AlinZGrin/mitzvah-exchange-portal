@@ -517,9 +517,15 @@ export default function DashboardPage() {
                       <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-3 md:space-y-0">
                         <div className="text-sm text-gray-600">
                           {assignment.request.ownerId === user?.id ? (
-                            <span>You requested this • Performed by {assignment.performer?.profile?.displayName}</span>
+                            <span>You requested this • Performed by {assignment.performer?.profile?.displayName || 'Community Member'}</span>
                           ) : (
-                            <span>Requested by {assignment.request.owner?.profile?.displayName}</span>
+                            <span>Requested by {
+                              (() => {
+                                const owner = assignment.request.owner;
+                                const privacy = owner?.profile?.privacy ? JSON.parse(owner.profile.privacy) : { showEmail: false, showExactLocation: false };
+                                return owner?.profile?.displayName || 'Community Member';
+                              })()
+                            }</span>
                           )}
                         </div>
                         

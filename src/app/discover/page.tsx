@@ -5,6 +5,7 @@ import { Search, Filter, MapPin, Clock, User, Heart, Loader2 } from "lucide-reac
 import { useRequests } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { MitzvahRequestWithRelations } from "@/lib/types";
+import { UserContactInfo } from "@/lib/privacy-utils";
 import dynamic from "next/dynamic";
 
 // Dynamically import MapView to avoid SSR issues
@@ -33,7 +34,7 @@ export default function DiscoverPage() {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [claimingId, setClaimingId] = useState<string | null>(null);
   
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   // Build filters object
   const filters = {
@@ -340,6 +341,11 @@ export default function DiscoverPage() {
                             <div className="flex items-center gap-1">
                               <User className="h-4 w-4" />
                               Posted by {request.owner?.profile?.displayName || 'Community Member'}
+                              {request.owner?.profile?.showEmail && request.owner?.profile?.email && (
+                                <span className="text-xs ml-1">
+                                  ({request.owner.profile.email})
+                                </span>
+                              )}
                             </div>
                           </div>
 

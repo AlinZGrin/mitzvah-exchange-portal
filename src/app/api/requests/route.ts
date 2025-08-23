@@ -3,6 +3,7 @@ import { prisma, withPrisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { JSONUtils, PointsUtils } from '@/lib/types';
 import { safeConsoleError } from '@/lib/error-utils';
+import { getPrivacyAwareUserInfo } from '@/lib/privacy-utils';
 
 // GET /api/requests - Get all requests with filters
 export async function GET(request: NextRequest) {
@@ -46,9 +47,12 @@ export async function GET(request: NextRequest) {
           owner: {
             select: {
               id: true,
+              email: true,
               profile: {
                 select: {
-                  displayName: true
+                  displayName: true,
+                  city: true,
+                  privacy: true
                 }
               }
             }
@@ -58,9 +62,12 @@ export async function GET(request: NextRequest) {
               performer: {
                 select: {
                   id: true,
+                  email: true,
                   profile: {
                     select: {
-                      displayName: true
+                      displayName: true,
+                      city: true,
+                      privacy: true
                     }
                   }
                 }
@@ -78,12 +85,91 @@ export async function GET(request: NextRequest) {
       return { requests, total };
     });
 
-    // Transform the data to parse JSON fields
-    const transformedRequests = result.requests.map((request: any) => ({
-      ...request,
-      requirements: JSONUtils.parseArray(request.requirements),
-      attachments: JSONUtils.parseArray(request.attachments)
-    }));
+    // Get current user ID for privacy checks (if authenticated)
+    let currentUserId = null;
+    try {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+        currentUserId = decoded.userId;
+      }
+    } catch (error) {
+      // Not authenticated or invalid token - continue without user context
+    }
+
+    // Transform the data to parse JSON fields and apply privacy settings
+    const transformedRequests = result.requests.map((request: any) => {
+      // Apply privacy settings to owner information
+      let ownerInfo = null;
+      if (request.owner) {
+        const ownerWithPrivacy = {
+          id: request.owner.id,
+          email: request.owner.email,
+          profile: {
+            displayName: request.owner.profile?.displayName,
+            city: request.owner.profile?.city,
+            privacy: JSONUtils.parseObject(request.owner.profile?.privacy, {
+              showEmail: false,
+              showExactLocation: false
+            })
+          }
+        };
+        
+        const privacyAwareInfo = getPrivacyAwareUserInfo(ownerWithPrivacy, currentUserId);
+        ownerInfo = {
+          id: request.owner.id,
+          profile: {
+            displayName: privacyAwareInfo.displayName,
+            email: privacyAwareInfo.email,
+            city: privacyAwareInfo.city,
+            showEmail: privacyAwareInfo.showEmail,
+            showLocation: privacyAwareInfo.showLocation
+          }
+        };
+      }
+
+      // Apply privacy settings to performer information
+      let performerInfo = null;
+      if (request.assignment?.performer) {
+        const performerWithPrivacy = {
+          id: request.assignment.performer.id,
+          email: request.assignment.performer.email,
+          profile: {
+            displayName: request.assignment.performer.profile?.displayName,
+            city: request.assignment.performer.profile?.city,
+            privacy: JSONUtils.parseObject(request.assignment.performer.profile?.privacy, {
+              showEmail: false,
+              showExactLocation: false
+            })
+          }
+        };
+        
+        const privacyAwareInfo = getPrivacyAwareUserInfo(performerWithPrivacy, currentUserId);
+        performerInfo = {
+          id: request.assignment.performer.id,
+          profile: {
+            displayName: privacyAwareInfo.displayName,
+            email: privacyAwareInfo.email,
+            city: privacyAwareInfo.city,
+            showEmail: privacyAwareInfo.showEmail,
+            showLocation: privacyAwareInfo.showLocation
+          }
+        };
+      }
+
+      return {
+        ...request,
+        requirements: JSONUtils.parseArray(request.requirements),
+        attachments: JSONUtils.parseArray(request.attachments),
+        owner: ownerInfo,
+        assignment: request.assignment ? {
+          ...request.assignment,
+          performer: performerInfo
+        } : null
+      };
+    });
 
     return NextResponse.json({
       requests: transformedRequests,
