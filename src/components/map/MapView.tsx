@@ -200,6 +200,8 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
   const navigateToNext = (e: React.MouseEvent, coordKey: string, totalCount: number) => {
     e.stopPropagation();
     e.preventDefault();
+    e.nativeEvent.stopImmediatePropagation();
+    
     setCurrentIndexByCoords(prev => ({
       ...prev,
       [coordKey]: ((prev[coordKey] || 0) + 1) % totalCount
@@ -209,6 +211,8 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
   const navigateToPrevious = (e: React.MouseEvent, coordKey: string, totalCount: number) => {
     e.stopPropagation();
     e.preventDefault();
+    e.nativeEvent.stopImmediatePropagation();
+    
     setCurrentIndexByCoords(prev => ({
       ...prev,
       [coordKey]: ((prev[coordKey] || 0) - 1 + totalCount) % totalCount
@@ -374,17 +378,26 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
             
             return (
               <Marker
-                key={`${coordKey}-${currentIndex}`}
+                key={coordKey}
                 position={coordinates}
                 icon={customIcon}
               >
-                <Popup maxWidth={320} className="mitzvah-popup">
+                <Popup 
+                  maxWidth={320} 
+                  className="mitzvah-popup"
+                  closeOnClick={false}
+                  closeOnEscapeKey={true}
+                  autoClose={false}
+                  keepInView={true}
+                >
                   <div className="p-2">
                     {/* Pagination header if multiple requests */}
                     {totalCount > 1 && (
                       <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
                         <button
+                          type="button"
                           onClick={(e) => navigateToPrevious(e, coordKey, totalCount)}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                           aria-label="Previous mitzvah"
                         >
@@ -396,7 +409,9 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                         </div>
                         
                         <button
+                          type="button"
                           onClick={(e) => navigateToNext(e, coordKey, totalCount)}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                           aria-label="Next mitzvah"
                         >
