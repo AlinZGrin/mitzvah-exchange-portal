@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Users, 
   Calendar, 
@@ -26,7 +26,7 @@ import { useAssignments } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { UserStats } from "@/lib/types";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, stats, isAuthenticated, loading } = useAuth();
   const { assignments, loading: assignmentsLoading, completeAssignment, confirmAssignment, releaseAssignment } = useAssignments();
   const [activeTab, setActiveTab] = useState("overview");
@@ -34,12 +34,21 @@ export default function DashboardPage() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [releasingId, setReleasingId] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push("/auth/login");
     }
   }, [isAuthenticated, loading, router]);
+
+  // Check for tab query parameter and set active tab
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "assignments") {
+      setActiveTab("assignments");
+    }
+  }, [searchParams]);
 
   const handleCompleteAssignment = async (assignmentId: string) => {
     try {
@@ -621,5 +630,20 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="pt-16 min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

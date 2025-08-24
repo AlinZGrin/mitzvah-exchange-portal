@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Search, Filter, MapPin, Clock, User, Heart, Loader2 } from "lucide-react";
 import { useRequests } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -35,6 +36,7 @@ export default function DiscoverPage() {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   
   const { isAuthenticated, user } = useAuth();
+  const router = useRouter();
   
   // Build filters object
   const filters = {
@@ -65,7 +67,8 @@ export default function DiscoverPage() {
       if (response.ok) {
         // Reload requests to reflect the status change
         loadRequests();
-        alert("Mitzvah claimed successfully! Check your dashboard for details.");
+        // Redirect to dashboard with assignments tab active
+        router.push("/dashboard?tab=assignments");
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Failed to claim request");
