@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Trophy,
   Target,
-  Zap
+  Zap,
+  Phone
 } from "lucide-react";
 import Link from "next/link";
 import { useAssignments } from "@/lib/api";
@@ -515,17 +516,41 @@ export default function DashboardPage() {
 
                     <div className="border-t pt-4">
                       <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-3 md:space-y-0">
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 space-y-1">
                           {assignment.request.ownerId === user?.id ? (
-                            <span>You requested this • Performed by {assignment.performer?.profile?.displayName || 'Community Member'}</span>
+                            <div>
+                              <span>You requested this • Performed by {assignment.performer?.profile?.displayName || 'Community Member'}</span>
+                              {assignment.performer?.profile?.phone && assignment.performer?.profile?.showPhone && (
+                                <div className="text-blue-600 font-medium">
+                                  📞 {assignment.performer.profile.phone}
+                                </div>
+                              )}
+                              {assignment.performer?.profile?.email && assignment.performer?.profile?.showEmail && (
+                                <div className="text-blue-600">
+                                  ✉️ {assignment.performer.profile.email}
+                                </div>
+                              )}
+                            </div>
                           ) : (
-                            <span>Requested by {
-                              (() => {
-                                const owner = assignment.request.owner;
-                                const privacy = owner?.profile?.privacy ? JSON.parse(owner.profile.privacy) : { showEmail: false, showExactLocation: false };
-                                return owner?.profile?.displayName || 'Community Member';
-                              })()
-                            }</span>
+                            <div>
+                              <span>Requested by {
+                                (() => {
+                                  const owner = assignment.request.owner;
+                                  const privacy = owner?.profile?.privacy ? JSON.parse(owner.profile.privacy) : { showEmail: false, showExactLocation: false };
+                                  return owner?.profile?.displayName || 'Community Member';
+                                })()
+                              }</span>
+                              {assignment.request.owner?.profile?.phone && assignment.request.owner?.profile?.showPhone && (
+                                <div className="text-blue-600 font-medium">
+                                  📞 {assignment.request.owner.profile.phone}
+                                </div>
+                              )}
+                              {assignment.request.owner?.profile?.email && assignment.request.owner?.profile?.showEmail && (
+                                <div className="text-blue-600">
+                                  ✉️ {assignment.request.owner.profile.email}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                         

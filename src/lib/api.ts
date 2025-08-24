@@ -10,6 +10,7 @@ export interface User {
     displayName: string
     bio?: string
     city?: string
+    phone?: string
     languages: string[]
     skills: string[]
     privacy: {
@@ -169,6 +170,21 @@ class ApiClient {
   // User endpoints
   async getCurrentUser(): Promise<{ user: User; stats: UserStats }> {
     return this.request('/users/me')
+  }
+
+  async updateUserProfile(profileData: {
+    displayName?: string
+    bio?: string
+    city?: string
+    phone?: string
+    languages?: string[]
+    skills?: string[]
+    privacy?: Record<string, any>
+  }) {
+    return this.request('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(profileData)
+    })
   }
 
   // Request endpoints

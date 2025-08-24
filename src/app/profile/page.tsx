@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, MapPin, Globe, Shield, Save, ArrowLeft } from "lucide-react";
+import { User, Mail, MapPin, Globe, Shield, Save, ArrowLeft, Phone } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { apiClient } from "@/lib/api";
 
 const skillOptions = [
   "VISITS", "TRANSPORTATION", "ERRANDS", "TUTORING", 
@@ -21,11 +22,15 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [validationErrors, setValidationErrors] = useState({
+    phone: ""
+  });
   
   const [formData, setFormData] = useState({
     displayName: "",
     bio: "",
     city: "",
+    phone: "",
     languages: [] as string[],
     skills: [] as string[],
     privacy: {
@@ -34,6 +39,41 @@ export default function ProfilePage() {
       showExactLocation: false
     }
   });
+
+  // Validation functions
+  const validatePhone = (phone: string): string => {
+    if (!phone) return "";
+    // Remove all non-digit characters for validation
+    const digitsOnly = phone.replace(/\D/g, '');
+    
+    // Check if it starts with 1 (11 digits total - remove country code)
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+      return "Please enter phone number without country code";
+    }
+    
+    // USA phone numbers should have exactly 10 digits
+    if (digitsOnly.length !== 10) {
+      return "Please enter a valid 10-digit US phone number";
+    }
+    
+    return "";
+  };
+
+  // Format phone number for display (xxx) xxx-xxxx
+  const formatPhoneNumber = (phone: string): string => {
+    if (!phone) return "";
+    const digitsOnly = phone.replace(/\D/g, '');
+    
+    if (digitsOnly.length === 0) return "";
+    if (digitsOnly.length <= 3) return digitsOnly;
+    if (digitsOnly.length <= 6) return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`;
+    return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`;
+  };
+
+  // Get clean phone number for storage (10 digits only)
+  const getCleanPhoneNumber = (phone: string): string => {
+    return phone.replace(/\D/g, '').slice(0, 10);
+  };
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -65,6 +105,7 @@ export default function ProfilePage() {
         displayName: user.profile.displayName || "",
         bio: user.profile.bio || "",
         city: user.profile.city || "",
+        phone: formatPhoneNumber((user.profile as any)?.phone || ""),
         languages: user.profile.languages || [],
         skills: user.profile.skills || [],
         privacy
@@ -93,6 +134,19 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const formatted = formatPhoneNumber(value);
+    setFormData(prev => ({ ...prev, phone: formatted }));
+    
+    // Clear previous validation error and validate
+    setValidationErrors(prev => ({ ...prev, phone: "" }));
+    if (value) {
+      const error = validatePhone(formatted);
+      setValidationErrors(prev => ({ ...prev, phone: error }));
+    }
+  };
+
   const toggleSkill = (skill: string) => {
     setFormData(prev => ({
       ...prev,
@@ -117,29 +171,37 @@ export default function ProfilePage() {
     setError("");
     setSuccess("");
 
-    try {
-      const response = await fetch("/api/users/me", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
+    // Validate all fields before submitting
+    const phoneError = formData.phone ? validatePhone(formData.phone) : "";
+    
+    setValidationErrors({
+      phone: phoneError
+    });
 
-      if (response.ok) {
-        setSuccess("Profile updated successfully!");
-        setIsEditing(false);
-        // Refresh user data
-        if (updateProfile) {
-          await updateProfile();
-        }
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to update profile");
+    // Don't submit if there are validation errors
+    if (phoneError) {
+      setError("Please fix the validation errors before saving");
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      // Prepare data for submission with clean phone number
+      const submitData = {
+        ...formData,
+        phone: formData.phone ? getCleanPhoneNumber(formData.phone) : ""
+      };
+      
+      await apiClient.updateUserProfile(submitData);
+      setSuccess("Profile updated successfully!");
+      setIsEditing(false);
+      // Refresh user data
+      if (updateProfile) {
+        await updateProfile();
       }
     } catch (error) {
-      setError("Network error. Please try again.");
+      console.error('Profile update error:', error);
+      setError(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
     }
@@ -227,6 +289,25 @@ export default function ProfilePage() {
               </div>
               
               <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <Mail className="inline h-4 w-4 mr-1" />
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  disabled={true}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500"
+                  value={user?.email || ""}
+                  readOnly
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Email address cannot be changed
+                </p>
+              </div>
+              
+              <div>
                 <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
                   <MapPin className="inline h-4 w-4 mr-1" />
                   City
@@ -240,6 +321,33 @@ export default function ProfilePage() {
                   value={formData.city}
                   onChange={handleChange}
                 />
+              </div>
+              
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  <Phone className="inline h-4 w-4 mr-1" />
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  disabled={!isEditing}
+                  placeholder="(555) 123-4567"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-50 ${
+                    validationErrors.phone 
+                      ? "border-red-500 focus:ring-red-500" 
+                      : "border-gray-300 focus:ring-blue-500"
+                  }`}
+                  value={formData.phone}
+                  onChange={handlePhoneChange}
+                />
+                {validationErrors.phone && (
+                  <p className="text-sm text-red-600 mt-1">{validationErrors.phone}</p>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Only shown to users who claim your mitzvah requests
+                </p>
               </div>
               
               <div className="md:col-span-2">
@@ -459,6 +567,7 @@ export default function ProfilePage() {
                       displayName: user.profile.displayName || "",
                       bio: user.profile.bio || "",
                       city: user.profile.city || "",
+                      phone: (user.profile as any)?.phone || "",
                       languages: user.profile.languages || [],
                       skills: user.profile.skills || [],
                       privacy: user.profile.privacy || {

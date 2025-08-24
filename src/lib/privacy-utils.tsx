@@ -4,15 +4,38 @@ export interface UserWithPrivacy {
   id: string;
   email: string;
   profile?: {
-    displayName: string;
-    bio?: string;
-    city?: string;
+    displayName?: string | null;
+    bio?: string | null;
+    city?: string | null;
+    phone?: string | null;
     privacy?: {
-      showEmail: boolean;
+      showEmail?: boolean;
       showPhone?: boolean;
-      showExactLocation: boolean;
+      showExactLocation?: boolean;
     };
   };
+}
+
+/**
+ * Determine if phone number should be visible based on relationship between users
+ * @param user - User whose phone number we're checking
+ * @param currentUserId - ID of user requesting to see the phone
+ * @param hasActiveAssignment - Whether current user has an active assignment with this user
+ * @returns boolean indicating if phone should be visible
+ */
+export function shouldShowPhone(user: UserWithPrivacy, currentUserId?: string, hasActiveAssignment: boolean = false): boolean {
+  // Always show to self
+  if (currentUserId && user.id === currentUserId) {
+    return true;
+  }
+  
+  // Show to users who have an active assignment (claimed a mitzvah from this user)
+  if (hasActiveAssignment) {
+    return true;
+  }
+  
+  // Otherwise hide phone number
+  return false;
 }
 
 /**
@@ -45,7 +68,7 @@ export function getPrivacyAwareUserInfo(user: UserWithPrivacy, currentUserId?: s
   return {
     displayName: user.profile?.displayName || 'Community Member',
     email: privacy.showEmail ? user.email : null,
-    city: privacy.showExactLocation ? user.profile?.city : getGeneralLocation(user.profile?.city),
+    city: privacy.showExactLocation ? (user.profile?.city || null) : getGeneralLocation(user.profile?.city || undefined),
     showEmail: privacy.showEmail,
     showLocation: privacy.showExactLocation,
     isOwnProfile: false
