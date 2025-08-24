@@ -59,6 +59,16 @@ const getCoordinatesFromLocation = (location: string): [number, number] => {
     'Homestead, Florida': [25.4687, -80.4776],
     'Pembroke Pines, Florida': [26.0070, -80.2962],
     'Boca Raton, Florida': [26.3683, -80.1289],
+    
+    // Specific Miami area coordinates for exact addresses
+    'Biscayne Blvd': [25.7850, -80.1900],  // Biscayne Boulevard area
+    'Ocean Drive': [25.7850, -80.1300],    // South Beach Ocean Drive
+    'Miracle Mile': [25.7217, -80.2685],   // Coral Gables Miracle Mile
+    'Aventura Blvd': [25.9565, -80.1393], // Aventura area
+    'Downtown Miami': [25.7825, -80.1998], // Downtown Miami
+    'South Beach': [25.7850, -80.1300],    // South Beach
+    'Coral Gables': [25.7217, -80.2685],   // Coral Gables
+    'Miami Beach': [25.7907, -80.1300],    // Miami Beach
   };
   
   // First try exact match
@@ -66,12 +76,26 @@ const getCoordinatesFromLocation = (location: string): [number, number] => {
     return locationMap[location];
   }
   
-  // Try to find partial matches for cities/states
+  // Try to find partial matches for streets and landmarks
   const lowerLocation = location.toLowerCase();
   for (const [key, coords] of Object.entries(locationMap)) {
     if (lowerLocation.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerLocation)) {
       return coords;
     }
+  }
+  
+  // Enhanced address parsing for specific street names
+  if (lowerLocation.includes('biscayne')) {
+    return [25.7850, -80.1900]; // Biscayne Boulevard area
+  }
+  if (lowerLocation.includes('ocean drive')) {
+    return [25.7850, -80.1300]; // South Beach Ocean Drive
+  }
+  if (lowerLocation.includes('miracle mile')) {
+    return [25.7217, -80.2685]; // Coral Gables Miracle Mile
+  }
+  if (lowerLocation.includes('aventura')) {
+    return [25.9565, -80.1393]; // Aventura area
   }
   
   // Try to extract city from various formats
