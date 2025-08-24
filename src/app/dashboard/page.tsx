@@ -33,6 +33,7 @@ function DashboardContent() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [releasingId, setReleasingId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -53,7 +54,16 @@ function DashboardContent() {
   const handleCompleteAssignment = async (assignmentId: string) => {
     try {
       setCompletingId(assignmentId);
-      await completeAssignment(assignmentId, "Assignment completed successfully");
+      const result = await completeAssignment(assignmentId, "Assignment completed successfully");
+      
+      // Show success message with points awarded
+      if (result.pointsAwarded) {
+        setSuccessMessage(`🎉 Assignment completed! ${result.pointsAwarded} points awarded!`);
+        setTimeout(() => setSuccessMessage(null), 5000); // Clear message after 5 seconds
+      }
+      
+      // Navigate to overview tab to show updated stats
+      setActiveTab("overview");
     } catch (error) {
       console.error("Error completing assignment:", error);
     } finally {
@@ -141,6 +151,22 @@ function DashboardContent() {
   return (
     <div className="pt-16 min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              <span>{successMessage}</span>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-green-700 hover:text-green-900"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -596,28 +622,11 @@ function DashboardContent() {
                             </>
                           )}
                           
-                          {/* Actions for requester */}
-                          {assignment.request.ownerId === user?.id && assignment.status === "COMPLETED" && (
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <button
-                                onClick={() => handleConfirmAssignment(assignment.id, true)}
-                                disabled={confirmingId === assignment.id}
-                                className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-                              >
-                                {confirmingId === assignment.id ? "Confirming..." : "Confirm & Award Points"}
-                              </button>
-                              <button
-                                onClick={() => handleConfirmAssignment(assignment.id, false)}
-                                disabled={confirmingId === assignment.id}
-                                className="px-3 py-2 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
-                              >
-                                Need Changes
-                              </button>
-                            </div>
-                          )}
+                          {/* Note: Since assignments now auto-confirm and award points immediately, 
+                               we no longer need separate confirmation buttons for request owners */}
                           
                           {assignment.status === "CONFIRMED" && (
-                            <span className="text-sm text-green-600 font-medium">✅ Complete</span>
+                            <span className="text-sm text-green-600 font-medium">✅ Complete & Points Awarded</span>
                           )}
                         </div>
                       </div>
