@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { MapPin, Heart, Clock, User } from 'lucide-react';
+import { MapPin, Heart, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Dynamically import map components to avoid SSR issues
 const MapContainer = dynamic(
@@ -97,6 +97,18 @@ const getCoordinatesFromLocation = (location: string): [number, number] => {
   if (lowerLocation.includes('aventura')) {
     return [25.9565, -80.1393]; // Aventura area
   }
+  if (lowerLocation.includes('152nd') || lowerLocation.includes('zoo')) {
+    return [25.6356, -80.4467]; // Zoo Miami / SW 152nd Street area
+  }
+  if (lowerLocation.includes('dixie hwy') || lowerLocation.includes('pinecrest')) {
+    return [25.6631, -80.3100]; // Pinecrest area
+  }
+  if (lowerLocation.includes('kendall')) {
+    return [25.6761, -80.3144]; // Kendall area
+  }
+  if (lowerLocation.includes('homestead')) {
+    return [25.4687, -80.4776]; // Homestead area
+  }
   
   // Try to extract city from various formats
   if (lowerLocation.includes('florida') || lowerLocation.includes('fl')) {
@@ -162,6 +174,42 @@ const calculatePoints = (request: any) => {
 export default function MapView({ requests, onClaimRequest, claimingId, isAuthenticated }: MapViewProps) {
   const [isClient, setIsClient] = useState(false);
   const [L, setL] = useState<any>(null);
+  const [currentIndexByCoords, setCurrentIndexByCoords] = useState<{ [key: string]: number }>({});
+
+  // Group requests by coordinates
+  const groupRequestsByCoordinates = (requests: any[]) => {
+    const groups: { [key: string]: any[] } = {};
+    
+    requests.forEach((request) => {
+      const locationForMap = request.location || request.locationDisplay;
+      const coordinates = getCoordinatesFromLocation(locationForMap);
+      const coordKey = `${coordinates[0]},${coordinates[1]}`;
+      
+      if (!groups[coordKey]) {
+        groups[coordKey] = [];
+      }
+      groups[coordKey].push(request);
+    });
+    
+    return groups;
+  };
+
+  const requestGroups = groupRequestsByCoordinates(requests);
+
+  // Navigation functions for paginated popups
+  const navigateToNext = (coordKey: string, totalCount: number) => {
+    setCurrentIndexByCoords(prev => ({
+      ...prev,
+      [coordKey]: ((prev[coordKey] || 0) + 1) % totalCount
+    }));
+  };
+
+  const navigateToPrevious = (coordKey: string, totalCount: number) => {
+    setCurrentIndexByCoords(prev => ({
+      ...prev,
+      [coordKey]: ((prev[coordKey] || 0) - 1 + totalCount) % totalCount
+    }));
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -258,34 +306,115 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {requests.map((request) => {
+          {Object.entries(requestGroups).map(([coordKey, groupRequests]) => {
+            const currentIndex = currentIndexByCoords[coordKey] || 0;
+            const currentRequest = groupRequests[currentIndex];
+            const totalCount = groupRequests.length;
+            
             // Use complete address if available, otherwise fall back to general area
-            const locationForMap = request.location || request.locationDisplay;
+            const locationForMap = currentRequest.location || currentRequest.locationDisplay;
             const coordinates = getCoordinatesFromLocation(locationForMap);
-            const customIcon = createCustomIcon(request.urgency, request.category);
+            
+            // Create a custom icon that shows the count if multiple requests
+            const createGroupIcon = (urgency: string, category: string, count: number) => {
+              if (!L) return null;
+              
+              const color = urgency === 'HIGH' ? '#ef4444' : urgency === 'NORMAL' ? '#3b82f6' : '#10b981';
+              const emoji = getCategoryIcon(category);
+              
+              return L.divIcon({
+                className: 'custom-marker',
+                html: `
+                  <div style="
+                    background-color: ${color};
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    font-size: 14px;
+                    position: relative;
+                  ">
+                    ${emoji}
+                    ${count > 1 ? `
+                      <div style="
+                        position: absolute;
+                        top: -5px;
+                        right: -5px;
+                        background-color: #dc2626;
+                        color: white;
+                        border-radius: 50%;
+                        width: 16px;
+                        height: 16px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 10px;
+                        font-weight: bold;
+                        border: 1px solid white;
+                      ">
+                        ${count}
+                      </div>
+                    ` : ''}
+                  </div>
+                `,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15],
+              });
+            };
+            
+            const customIcon = createGroupIcon(currentRequest.urgency, currentRequest.category, totalCount);
             
             return (
               <Marker
-                key={request.id}
+                key={`${coordKey}-${currentIndex}`}
                 position={coordinates}
                 icon={customIcon}
               >
-                <Popup maxWidth={300} className="mitzvah-popup">
+                <Popup maxWidth={320} className="mitzvah-popup">
                   <div className="p-2">
+                    {/* Pagination header if multiple requests */}
+                    {totalCount > 1 && (
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                        <button
+                          onClick={() => navigateToPrevious(coordKey, totalCount)}
+                          className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                          aria-label="Previous mitzvah"
+                        >
+                          <ChevronLeft className="h-4 w-4 text-gray-600" />
+                        </button>
+                        
+                        <div className="text-sm text-gray-600 font-medium">
+                          {currentIndex + 1} of {totalCount} mitzvahs here
+                        </div>
+                        
+                        <button
+                          onClick={() => navigateToNext(coordKey, totalCount)}
+                          className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                          aria-label="Next mitzvah"
+                        >
+                          <ChevronRight className="h-4 w-4 text-gray-600" />
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex items-start gap-2 mb-2">
-                      <span className="text-xl">{getCategoryIcon(request.category)}</span>
+                      <span className="text-xl">{getCategoryIcon(currentRequest.category)}</span>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900 mb-1">{request.title}</h4>
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{request.description}</p>
+                        <h4 className="font-semibold text-gray-900 mb-1">{currentRequest.title}</h4>
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{currentRequest.description}</p>
                       </div>
                     </div>
                     
                     <div className="flex flex-wrap gap-1 mb-2">
                       <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                        {formatCategory(request.category)}
+                        {formatCategory(currentRequest.category)}
                       </span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getUrgencyColor(request.urgency)}`}>
-                        {formatCategory(request.urgency)}
+                      <span className={`px-2 py-1 text-xs rounded-full ${getUrgencyColor(currentRequest.urgency)}`}>
+                        {formatCategory(currentRequest.urgency)}
                       </span>
                     </div>
 
@@ -293,7 +422,7 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                       <div className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
                         {(() => {
-                          const owner = request.owner;
+                          const owner = currentRequest.owner;
                           const privacy = owner?.profile?.privacy ? 
                             (typeof owner.profile.privacy === 'string' ? 
                               JSON.parse(owner.profile.privacy) : 
@@ -301,16 +430,16 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                             ) : { showExactLocation: false };
                           
                           // Show exact location if available and user has enabled showExactLocation
-                          return (privacy.showExactLocation && request.location) ? 
-                            request.location : 
-                            request.locationDisplay;
+                          return (privacy.showExactLocation && currentRequest.location) ? 
+                            currentRequest.location : 
+                            currentRequest.locationDisplay;
                         })()}
                       </div>
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {request.owner?.profile?.displayName || 'Community Member'}
+                        {currentRequest.owner?.profile?.displayName || 'Community Member'}
                         {(() => {
-                          const owner = request.owner;
+                          const owner = currentRequest.owner;
                           if (!owner?.profile?.privacy) return '';
                           
                           let privacy;
@@ -328,24 +457,24 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                       </div>
                       <div className="flex items-center gap-1">
                         <Heart className="h-3 w-3" />
-                        {calculatePoints(request)} points
+                        {calculatePoints(currentRequest)} points
                       </div>
                     </div>
 
-                    {request.status === 'OPEN' ? (
+                    {currentRequest.status === 'OPEN' ? (
                       <button 
-                        onClick={() => onClaimRequest(request.id)}
-                        disabled={claimingId === request.id || !isAuthenticated}
+                        onClick={() => onClaimRequest(currentRequest.id)}
+                        disabled={claimingId === currentRequest.id || !isAuthenticated}
                         className="w-full bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {claimingId === request.id ? 'Claiming...' : 
+                        {claimingId === currentRequest.id ? 'Claiming...' : 
                          !isAuthenticated ? 'Login to Claim' : 'Claim Mitzvah'}
                       </button>
                     ) : (
                       <div className="w-full text-center px-3 py-1.5 bg-gray-100 text-gray-600 rounded text-sm">
-                        {request.status === 'CLAIMED' ? 'Already Claimed' : 
-                         request.status === 'CONFIRMED' ? 'Completed' : 
-                         formatCategory(request.status)}
+                        {currentRequest.status === 'CLAIMED' ? 'Already Claimed' : 
+                         currentRequest.status === 'CONFIRMED' ? 'Completed' : 
+                         formatCategory(currentRequest.status)}
                       </div>
                     )}
                   </div>
@@ -360,7 +489,8 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
       <div className="p-4 bg-gray-50 border-t">
         <p className="text-sm text-gray-600">
           💡 <strong>Tip:</strong> Click on the colored markers to see mitzvah details and claim opportunities. 
-          Different colors represent urgency levels, and emojis show the category type.
+          Different colors represent urgency levels, and emojis show the category type. 
+          When multiple mitzvahs are in the same area, use the arrow buttons to navigate between them.
         </p>
       </div>
     </div>
