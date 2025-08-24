@@ -236,7 +236,7 @@ export default function CreateRequestPage() {
                 <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
                     <MapPin className="inline h-4 w-4 mr-1" />
-                    Location *
+                    Where is this mitzvah needed? *
                   </label>
                   <input
                     type="text"
@@ -244,12 +244,12 @@ export default function CreateRequestPage() {
                     name="locationDisplay"
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="City, neighborhood, or general area"
+                    placeholder="Downtown Library, Main Street area, West Side neighborhood, etc."
                     value={formData.locationDisplay}
                     onChange={handleChange}
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    For privacy, only provide general location. Exact address shared after assignment.
+                    Enter the general area where help is needed. For privacy, exact address will be shared only after assignment.
                   </p>
                 </div>
 
