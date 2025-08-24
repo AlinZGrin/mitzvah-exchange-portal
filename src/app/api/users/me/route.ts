@@ -162,7 +162,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
 export const PATCH = requireAuth(async (request: NextRequest, user) => {
   try {
     const body = await request.json();
-    const { displayName, bio, city, address, phone, languages, skills, privacy } = body;
+    const { displayName, bio, city, neighborhood, phone, languages, skills, privacy } = body;
 
     const updatedProfile = await withPrisma(async (prisma) => {
       // Update or create profile
@@ -172,7 +172,7 @@ export const PATCH = requireAuth(async (request: NextRequest, user) => {
           displayName: displayName || null,
           bio: bio || null,
           city: city || null,
-          address: address || null,
+          neighborhood: neighborhood || null,
           phone: phone || null,
           languages: JSON.stringify(languages || []),
           skills: JSON.stringify(skills || []),
@@ -184,7 +184,7 @@ export const PATCH = requireAuth(async (request: NextRequest, user) => {
           displayName: displayName || null,
           bio: bio || null,
           city: city || null,
-          address: address || null,
+          neighborhood: neighborhood || null,
           phone: phone || null,
           languages: JSON.stringify(languages || []),
           skills: JSON.stringify(skills || []),

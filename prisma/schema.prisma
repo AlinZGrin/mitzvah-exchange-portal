@@ -38,7 +38,7 @@ model Profile {
   displayName  String?
   bio          String?
   city         String?
-  address      String?
+  neighborhood String?
   phone        String?
   languages    String?
   skills       String?

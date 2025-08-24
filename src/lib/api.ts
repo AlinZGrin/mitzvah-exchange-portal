@@ -176,7 +176,7 @@ class ApiClient {
     displayName?: string
     bio?: string
     city?: string
-    address?: string
+    neighborhood?: string
     phone?: string
     languages?: string[]
     skills?: string[]

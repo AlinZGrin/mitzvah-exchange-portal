@@ -7,7 +7,7 @@ export interface UserWithPrivacy {
     displayName?: string | null;
     bio?: string | null;
     city?: string | null;
-    address?: string | null;
+    neighborhood?: string | null;
     phone?: string | null;
     privacy?: {
       showEmail?: boolean;
@@ -62,37 +62,6 @@ export function shouldShowAddress(user: UserWithPrivacy, currentUserId?: string,
 }
 
 /**
- * Extract city portion from a full address
- * @param address - Full address string
- * @returns City portion only
- */
-function extractCityFromAddress(address: string | null): string | null {
-  if (!address) return null;
-  
-  // Try to extract city from common address formats
-  // Example: "123 Main St, Springfield, IL 62701" -> "Springfield"
-  // Example: "Springfield, IL" -> "Springfield" 
-  // Example: "Springfield" -> "Springfield"
-  
-  const parts = address.split(',').map(part => part.trim());
-  
-  if (parts.length >= 2) {
-    // If multiple parts, assume second-to-last is city
-    return parts[parts.length - 2];
-  }
-  
-  // If single part, check if it looks like "City State" or just return it
-  const words = address.trim().split(' ');
-  if (words.length >= 2 && words[words.length - 1].length === 2) {
-    // Likely "City ST" format, return all but last word
-    return words.slice(0, -1).join(' ');
-  }
-  
-  // Single word or simple format, return as-is
-  return address.trim();
-}
-
-/**
  * Get appropriate location display based on privacy and relationship
  * @param user - User whose location we're displaying
  * @param currentUserId - ID of user viewing the information
@@ -105,21 +74,37 @@ export function getLocationDisplay(user: UserWithPrivacy, currentUserId?: string
   
   // For own profile, always show what they have
   if (isOwnProfile) {
-    return user.profile?.address || user.profile?.city || null;
+    return formatFullLocation(user.profile?.city, user.profile?.neighborhood);
   }
   
-  // If user has active assignment, show full address regardless of privacy settings
+  // If user has active assignment, show full location regardless of privacy settings
   if (hasActiveAssignment) {
-    return user.profile?.address || user.profile?.city || null;
+    return formatFullLocation(user.profile?.city, user.profile?.neighborhood);
   }
   
-  // If user allows exact location to be shown, show full address
+  // If user allows exact location to be shown, show full location
   if (privacy.showExactLocation) {
-    return user.profile?.address || user.profile?.city || null;
+    return formatFullLocation(user.profile?.city, user.profile?.neighborhood);
   }
   
-  // Otherwise, extract and show only city portion
-  return extractCityFromAddress(user.profile?.address || user.profile?.city || null);
+  // Otherwise, show only city
+  return user.profile?.city || null;
+}
+
+/**
+ * Format city and neighborhood into a full location string
+ * @param city - City name
+ * @param neighborhood - Neighborhood name
+ * @returns Formatted location string
+ */
+function formatFullLocation(city?: string | null, neighborhood?: string | null): string | null {
+  if (!city && !neighborhood) return null;
+  
+  if (city && neighborhood) {
+    return `${neighborhood}, ${city}`;
+  }
+  
+  return city || neighborhood || null;
 }
 
 /**
@@ -137,7 +122,7 @@ export function getPrivacyAwareUserInfo(user: UserWithPrivacy, currentUserId?: s
     return {
       displayName: user.profile?.displayName || 'Anonymous User',
       email: user.email,
-      location: user.profile?.address || user.profile?.city || null,
+      location: formatFullLocation(user.profile?.city, user.profile?.neighborhood),
       showEmail: true,
       showLocation: true,
       showFullAddress: true,
