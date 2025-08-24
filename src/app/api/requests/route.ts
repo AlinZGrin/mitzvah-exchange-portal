@@ -163,6 +163,14 @@ export async function GET(request: NextRequest) {
         ...request,
         requirements: JSONUtils.parseArray(request.requirements),
         attachments: JSONUtils.parseArray(request.attachments),
+        // Apply location privacy: show exact location if owner allows it
+        location: (() => {
+          if (!request.owner?.profile?.privacy) return null;
+          const privacy = JSONUtils.parseObject(request.owner.profile.privacy, { showExactLocation: false });
+          const isOwnRequest = currentUserId && request.ownerId === currentUserId;
+          return (privacy.showExactLocation || isOwnRequest) ? request.location : null;
+        })(),
+        locationDisplay: request.locationDisplay,
         owner: ownerInfo,
         assignment: request.assignment ? {
           ...request.assignment,

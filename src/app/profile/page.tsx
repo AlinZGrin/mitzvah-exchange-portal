@@ -325,8 +325,8 @@ export default function ProfilePage() {
               Privacy Settings
             </h2>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
                   <label htmlFor="showEmail" className="text-sm font-medium text-gray-900">
                     Show email address
@@ -335,18 +335,38 @@ export default function ProfilePage() {
                     Allow other community members to see your email address
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  id="showEmail"
-                  name="privacy.showEmail"
-                  disabled={!isEditing}
-                  checked={formData.privacy.showEmail}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                />
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    disabled={!isEditing}
+                    onClick={() => {
+                      if (isEditing) {
+                        setFormData(prev => ({
+                          ...prev,
+                          privacy: {
+                            ...prev.privacy,
+                            showEmail: !prev.privacy.showEmail
+                          }
+                        }));
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      formData.privacy.showEmail ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out ${
+                        formData.privacy.showEmail ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="ml-3 text-sm text-gray-700">
+                    {formData.privacy.showEmail ? 'ON' : 'OFF'}
+                  </span>
+                </div>
               </div>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
                   <label htmlFor="showExactLocation" className="text-sm font-medium text-gray-900">
                     Show exact location
@@ -355,15 +375,35 @@ export default function ProfilePage() {
                     Display your specific address instead of just city/neighborhood
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  id="showExactLocation"
-                  name="privacy.showExactLocation"
-                  disabled={!isEditing}
-                  checked={formData.privacy.showExactLocation}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                />
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    disabled={!isEditing}
+                    onClick={() => {
+                      if (isEditing) {
+                        setFormData(prev => ({
+                          ...prev,
+                          privacy: {
+                            ...prev.privacy,
+                            showExactLocation: !prev.privacy.showExactLocation
+                          }
+                        }));
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      formData.privacy.showExactLocation ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out ${
+                        formData.privacy.showExactLocation ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="ml-3 text-sm text-gray-700">
+                    {formData.privacy.showExactLocation ? 'ON' : 'OFF'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
