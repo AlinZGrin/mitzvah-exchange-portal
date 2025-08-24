@@ -17,6 +17,7 @@ export interface Profile {
   bio?: string;
   languages: string[]; // Will be stored as JSON string in DB
   city?: string;
+  address?: string;
   phone?: string;
   zip?: string;
   photoUrl?: string;

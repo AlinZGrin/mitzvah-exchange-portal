@@ -30,6 +30,7 @@ export default function ProfilePage() {
     displayName: "",
     bio: "",
     city: "",
+    address: "",
     phone: "",
     languages: [] as string[],
     skills: [] as string[],
@@ -105,6 +106,7 @@ export default function ProfilePage() {
         displayName: user.profile.displayName || "",
         bio: user.profile.bio || "",
         city: user.profile.city || "",
+        address: (user.profile as any)?.address || "",
         phone: formatPhoneNumber((user.profile as any)?.phone || ""),
         languages: user.profile.languages || [],
         skills: user.profile.skills || [],
@@ -308,20 +310,32 @@ export default function ProfilePage() {
               </div>
               
               <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
                   <MapPin className="inline h-4 w-4 mr-1" />
-                  City
+                  Address
                 </label>
                 <input
                   type="text"
-                  id="city"
-                  name="city"
+                  id="address"
+                  name="address"
                   disabled={!isEditing}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-                  value={formData.city}
+                  value={formData.address}
                   onChange={handleChange}
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Only city shown to public. Full address revealed to users who claim your mitzvahs.
+                </p>
               </div>
+              
+              {/* Hidden city field for backward compatibility */}
+              <input
+                type="hidden"
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+              />
               
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
@@ -567,6 +581,7 @@ export default function ProfilePage() {
                       displayName: user.profile.displayName || "",
                       bio: user.profile.bio || "",
                       city: user.profile.city || "",
+                      address: (user.profile as any)?.address || "",
                       phone: (user.profile as any)?.phone || "",
                       languages: user.profile.languages || [],
                       skills: user.profile.skills || [],

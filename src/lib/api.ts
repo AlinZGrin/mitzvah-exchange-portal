@@ -176,6 +176,7 @@ class ApiClient {
     displayName?: string
     bio?: string
     city?: string
+    address?: string
     phone?: string
     languages?: string[]
     skills?: string[]
@@ -251,6 +252,15 @@ class ApiClient {
     return this.request(`/assignments/${assignmentId}/confirm`, {
       method: 'POST',
       body: JSON.stringify(data)
+    })
+  }
+
+  async releaseAssignment(assignmentId: string, data?: {
+    reason?: string
+  }) {
+    return this.request(`/assignments/${assignmentId}/release`, {
+      method: 'POST',
+      body: JSON.stringify(data || {})
     })
   }
 }
