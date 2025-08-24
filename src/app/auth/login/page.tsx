@@ -19,8 +19,18 @@ export default function LoginPage() {
     setError("");
     setNeedsVerification(false);
     
+    // Get the actual form values (in case password manager filled them)
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const formEmail = formData.get('email') as string;
+    const formPassword = formData.get('password') as string;
+    
+    // Use form values if they differ from state (autofilled)
+    const actualEmail = formEmail || email;
+    const actualPassword = formPassword || password;
+    
     try {
-      await login(email, password);
+      await login(actualEmail, actualPassword);
       router.push("/dashboard");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
@@ -79,7 +89,7 @@ export default function LoginPage() {
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit} autoComplete="on">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} autoComplete="on" method="post">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
@@ -95,12 +105,14 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="username email"
+                autoComplete="username"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={(e) => setEmail(e.target.value)}
+                onFocus={(e) => setEmail(e.target.value)}
               />
             </div>
             <div>
@@ -117,6 +129,8 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onBlur={(e) => setPassword(e.target.value)}
+                onFocus={(e) => setPassword(e.target.value)}
               />
             </div>
           </div>
