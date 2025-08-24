@@ -27,7 +27,7 @@ import { useAuth } from "@/lib/auth-context";
 import type { UserStats } from "@/lib/types";
 
 function DashboardContent() {
-  const { user, stats, isAuthenticated, loading } = useAuth();
+  const { user, stats, isAuthenticated, loading, updateProfile } = useAuth();
   const { assignments, loading: assignmentsLoading, completeAssignment, confirmAssignment, releaseAssignment } = useAssignments();
   const [activeTab, setActiveTab] = useState("overview");
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -55,6 +55,9 @@ function DashboardContent() {
     try {
       setCompletingId(assignmentId);
       const result = await completeAssignment(assignmentId, "Assignment completed successfully");
+      
+      // Refresh user stats to show updated points immediately
+      await updateProfile();
       
       // Show success message with points awarded
       if (result.pointsAwarded) {
