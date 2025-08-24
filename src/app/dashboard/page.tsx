@@ -28,10 +28,11 @@ import type { UserStats } from "@/lib/types";
 
 export default function DashboardPage() {
   const { user, stats, isAuthenticated, loading } = useAuth();
-  const { assignments, loading: assignmentsLoading, completeAssignment, confirmAssignment } = useAssignments();
+  const { assignments, loading: assignmentsLoading, completeAssignment, confirmAssignment, releaseAssignment } = useAssignments();
   const [activeTab, setActiveTab] = useState("overview");
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [releasingId, setReleasingId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,6 +60,17 @@ export default function DashboardPage() {
       console.error("Error confirming assignment:", error);
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const handleReleaseAssignment = async (assignmentId: string) => {
+    try {
+      setReleasingId(assignmentId);
+      await releaseAssignment(assignmentId, "User changed their mind");
+    } catch (error) {
+      console.error("Error releasing assignment:", error);
+    } finally {
+      setReleasingId(null);
     }
   };
 
@@ -557,13 +569,22 @@ export default function DashboardPage() {
                         <div className="flex flex-col sm:flex-row gap-2">
                           {/* Actions for performer */}
                           {assignment.performerId === user?.id && assignment.status === "CLAIMED" && (
-                            <button
-                              onClick={() => handleCompleteAssignment(assignment.id)}
-                              disabled={completingId === assignment.id}
-                              className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-                            >
-                              {completingId === assignment.id ? "Completing..." : "Mark Complete"}
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleCompleteAssignment(assignment.id)}
+                                disabled={completingId === assignment.id}
+                                className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                              >
+                                {completingId === assignment.id ? "Completing..." : "Mark Complete"}
+                              </button>
+                              <button
+                                onClick={() => handleReleaseAssignment(assignment.id)}
+                                disabled={releasingId === assignment.id}
+                                className="px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                              >
+                                {releasingId === assignment.id ? "Releasing..." : "Release"}
+                              </button>
+                            </>
                           )}
                           
                           {/* Actions for requester */}

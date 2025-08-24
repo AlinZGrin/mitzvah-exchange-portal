@@ -515,12 +515,26 @@ export function useAssignments() {
     }
   }
 
+  const releaseAssignment = async (assignmentId: string, reason: string = '') => {
+    try {
+      const response = await apiClient.request(`/assignments/${assignmentId}/release`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      })
+      await loadAssignments()
+      return response
+    } catch (err) {
+      throw err
+    }
+  }
+
   return {
     assignments,
     loading,
     error,
     loadAssignments,
     completeAssignment,
-    confirmAssignment
+    confirmAssignment,
+    releaseAssignment
   }
 }
