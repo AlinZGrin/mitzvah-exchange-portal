@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { MapPin, Heart, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Dynamically import map components to avoid SSR issues
@@ -172,6 +173,7 @@ const calculatePoints = (request: any) => {
 };
 
 export default function MapView({ requests, onClaimRequest, claimingId, isAuthenticated }: MapViewProps) {
+  const router = useRouter();
   const [isClient, setIsClient] = useState(false);
   const [L, setL] = useState<any>(null);
   const [currentIndexByCoords, setCurrentIndexByCoords] = useState<{ [key: string]: number }>({});
@@ -217,6 +219,11 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
       ...prev,
       [coordKey]: ((prev[coordKey] || 0) - 1 + totalCount) % totalCount
     }));
+  };
+
+  // Handle login navigation for unauthenticated users
+  const handleLoginRedirect = () => {
+    router.push('/auth/login');
   };
 
   useEffect(() => {
@@ -482,9 +489,13 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
 
                     {currentRequest.status === 'OPEN' ? (
                       <button 
-                        onClick={() => onClaimRequest(currentRequest.id)}
-                        disabled={claimingId === currentRequest.id || !isAuthenticated}
-                        className="w-full bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => isAuthenticated ? onClaimRequest(currentRequest.id) : handleLoginRedirect()}
+                        disabled={claimingId === currentRequest.id}
+                        className={`w-full px-3 py-1.5 rounded text-sm transition-colors ${
+                          !isAuthenticated 
+                            ? 'bg-green-600 text-white hover:bg-green-700' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        } ${claimingId === currentRequest.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {claimingId === currentRequest.id ? 'Claiming...' : 
                          !isAuthenticated ? 'Login to Claim' : 'Claim Mitzvah'}
