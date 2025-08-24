@@ -32,6 +32,7 @@ export default function CreateRequestPage() {
     description: "",
     category: "",
     locationDisplay: "",
+    location: "",
     urgency: "NORMAL",
     timeWindowStart: "",
     timeWindowEnd: "",
@@ -77,6 +78,7 @@ export default function CreateRequestPage() {
         category: formData.category,
         urgency: formData.urgency,
         locationDisplay: formData.locationDisplay,
+        location: formData.location,
         timeWindowStart: formData.isFlexible ? null : formData.timeWindowStart || null,
         timeWindowEnd: formData.isFlexible ? null : formData.timeWindowEnd || null,
         requirements: formData.requirements,
@@ -93,6 +95,7 @@ export default function CreateRequestPage() {
         category: requestData.category,
         urgency: requestData.urgency as "LOW" | "NORMAL" | "HIGH",
         locationDisplay: requestData.locationDisplay,
+        location: requestData.location,
         timeWindowStart: requestData.timeWindowStart || undefined,
         timeWindowEnd: requestData.timeWindowEnd || undefined,
         requirements: requestData.requirements,
@@ -234,13 +237,13 @@ export default function CreateRequestPage() {
               
               <div className="space-y-6">
                 <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="locationDisplay" className="block text-sm font-medium text-gray-700 mb-2">
                     <MapPin className="inline h-4 w-4 mr-1" />
-                    Where is this mitzvah needed? *
+                    Where is this mitzvah needed? (General area) *
                   </label>
                   <input
                     type="text"
-                    id="location"
+                    id="locationDisplay"
                     name="locationDisplay"
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -249,7 +252,26 @@ export default function CreateRequestPage() {
                     onChange={handleChange}
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    Enter the general area where help is needed. For privacy, exact address will be shared only after assignment.
+                    Enter the general area where help is needed. This will be visible to all users.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                    <MapPin className="inline h-4 w-4 mr-1" />
+                    Complete Address (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="123 Main Street, Downtown, Miami, FL 33101"
+                    value={formData.location}
+                    onChange={handleChange}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Provide the exact address if you want the map to show precise location. Only visible if you enable &quot;Show exact location&quot; in privacy settings.
                   </p>
                 </div>
 

@@ -213,6 +213,7 @@ class ApiClient {
     category: string
     urgency: 'LOW' | 'NORMAL' | 'HIGH'
     locationDisplay: string
+    location?: string
     timeWindowStart?: string
     timeWindowEnd?: string
     requirements?: string[]

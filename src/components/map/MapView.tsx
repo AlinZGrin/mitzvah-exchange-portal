@@ -235,7 +235,9 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
           />
           
           {requests.map((request) => {
-            const coordinates = getCoordinatesFromLocation(request.locationDisplay);
+            // Use complete address if available, otherwise fall back to general area
+            const locationForMap = request.location || request.locationDisplay;
+            const coordinates = getCoordinatesFromLocation(locationForMap);
             const customIcon = createCustomIcon(request.urgency, request.category);
             
             return (
