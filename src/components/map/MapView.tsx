@@ -197,14 +197,18 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
   const requestGroups = groupRequestsByCoordinates(requests);
 
   // Navigation functions for paginated popups
-  const navigateToNext = (coordKey: string, totalCount: number) => {
+  const navigateToNext = (e: React.MouseEvent, coordKey: string, totalCount: number) => {
+    e.stopPropagation();
+    e.preventDefault();
     setCurrentIndexByCoords(prev => ({
       ...prev,
       [coordKey]: ((prev[coordKey] || 0) + 1) % totalCount
     }));
   };
 
-  const navigateToPrevious = (coordKey: string, totalCount: number) => {
+  const navigateToPrevious = (e: React.MouseEvent, coordKey: string, totalCount: number) => {
+    e.stopPropagation();
+    e.preventDefault();
     setCurrentIndexByCoords(prev => ({
       ...prev,
       [coordKey]: ((prev[coordKey] || 0) - 1 + totalCount) % totalCount
@@ -380,7 +384,7 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                     {totalCount > 1 && (
                       <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
                         <button
-                          onClick={() => navigateToPrevious(coordKey, totalCount)}
+                          onClick={(e) => navigateToPrevious(e, coordKey, totalCount)}
                           className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                           aria-label="Previous mitzvah"
                         >
@@ -392,7 +396,7 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                         </div>
                         
                         <button
-                          onClick={() => navigateToNext(coordKey, totalCount)}
+                          onClick={(e) => navigateToNext(e, coordKey, totalCount)}
                           className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                           aria-label="Next mitzvah"
                         >
