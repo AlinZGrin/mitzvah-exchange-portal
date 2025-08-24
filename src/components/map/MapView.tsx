@@ -59,6 +59,24 @@ const getCoordinatesFromLocation = (location: string): [number, number] => {
     'Homestead, Florida': [25.4687, -80.4776],
     'Pembroke Pines, Florida': [26.0070, -80.2962],
     'Boca Raton, Florida': [26.3683, -80.1289],
+    'Kendall, Florida': [25.6793, -80.3185],
+    'Miami, High Pines': [25.7480, -80.1917],
+    'coral gables, gables': [25.7217, -80.2685],
+    
+    // Exact addresses from current database
+    '248 SE 1st St, Miami, FL 33131': [25.7721, -80.1910],
+    '9040 SW 58th Ave Pinecrest FL 33156': [25.6631, -80.3100],
+    '8765 S Dixie Hwy, Pinecrest, FL 33156': [25.6631, -80.3000],
+    
+    // Common address patterns
+    'SW 58th Ave Pinecrest': [25.6631, -80.3100],
+    'S Dixie Hwy Pinecrest': [25.6631, -80.3000],
+    'SE 1st St Miami': [25.7721, -80.1910],
+    'SW 8th St Miami': [25.7675, -80.2175],
+    'NW 7th St Miami': [25.7848, -80.2033],
+    'Biscayne Blvd Miami': [25.7907, -80.1848],
+    'US-1 Pinecrest': [25.6631, -80.3000],
+    'Kendall Dr Miami': [25.6793, -80.3185],
   };
   
   // First try exact match
@@ -72,6 +90,48 @@ const getCoordinatesFromLocation = (location: string): [number, number] => {
     if (lowerLocation.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerLocation)) {
       return coords;
     }
+  }
+  
+  // Enhanced address parsing for Miami-Dade area
+  if (lowerLocation.includes('pinecrest')) {
+    return [25.6631, -80.3100]; // Pinecrest area
+  }
+  
+  if (lowerLocation.includes('coral gables')) {
+    return [25.7217, -80.2685]; // Coral Gables
+  }
+  
+  if (lowerLocation.includes('kendall')) {
+    return [25.6793, -80.3185]; // Kendall area
+  }
+  
+  if (lowerLocation.includes('homestead')) {
+    return [25.4687, -80.4776]; // Homestead
+  }
+  
+  if (lowerLocation.includes('aventura')) {
+    return [25.9565, -80.1393]; // Aventura
+  }
+  
+  if (lowerLocation.includes('doral')) {
+    return [25.8198, -80.3553]; // Doral
+  }
+  
+  // Try to extract coordinates from address patterns
+  if (lowerLocation.includes('sw') && lowerLocation.includes('ave')) {
+    return [25.6631, -80.3100]; // SW areas generally in Pinecrest/South Miami
+  }
+  
+  if (lowerLocation.includes('se') && lowerLocation.includes('st')) {
+    return [25.7721, -80.1910]; // SE areas generally in downtown Miami
+  }
+  
+  if (lowerLocation.includes('nw') && lowerLocation.includes('st')) {
+    return [25.7848, -80.2033]; // NW areas
+  }
+  
+  if (lowerLocation.includes('dixie') && lowerLocation.includes('hwy')) {
+    return [25.6631, -80.3000]; // US-1/Dixie Highway
   }
   
   // Try to extract city from various formats
@@ -235,7 +295,9 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
           />
           
           {requests.map((request) => {
-            const coordinates = getCoordinatesFromLocation(request.locationDisplay);
+            // Use exact location if available and privacy allows, otherwise use locationDisplay
+            const locationToUse = request.location || request.locationDisplay;
+            const coordinates = getCoordinatesFromLocation(locationToUse);
             const customIcon = createCustomIcon(request.urgency, request.category);
             
             return (
