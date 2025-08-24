@@ -266,15 +266,38 @@ export default function MapView({ requests, onClaimRequest, claimingId, isAuthen
                     <div className="space-y-1 text-xs text-gray-500 mb-3">
                       <div className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {request.locationDisplay}
+                        {(() => {
+                          const owner = request.owner;
+                          const privacy = owner?.profile?.privacy ? 
+                            (typeof owner.profile.privacy === 'string' ? 
+                              JSON.parse(owner.profile.privacy) : 
+                              owner.profile.privacy
+                            ) : { showExactLocation: false };
+                          
+                          // Show exact location if available and user has enabled showExactLocation
+                          return (privacy.showExactLocation && request.location) ? 
+                            request.location : 
+                            request.locationDisplay;
+                        })()}
                       </div>
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         {request.owner?.profile?.displayName || 'Community Member'}
                         {(() => {
                           const owner = request.owner;
-                          const privacy = owner?.profile?.privacy ? JSON.parse(owner.profile.privacy) : { showEmail: false };
-                          return privacy.showEmail && owner?.profile?.email ? ` (${owner.profile.email})` : '';
+                          if (!owner?.profile?.privacy) return '';
+                          
+                          let privacy;
+                          try {
+                            privacy = typeof owner.profile.privacy === 'string' ? 
+                              JSON.parse(owner.profile.privacy) : 
+                              owner.profile.privacy;
+                          } catch (e) {
+                            privacy = { showEmail: false };
+                          }
+                          
+                          return privacy.showEmail && owner?.profile?.email ? 
+                            ` (${owner.profile.email})` : '';
                         })()}
                       </div>
                       <div className="flex items-center gap-1">

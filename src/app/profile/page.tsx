@@ -42,17 +42,32 @@ export default function ProfilePage() {
     }
     
     if (user?.profile) {
+      let privacy = {
+        showEmail: false,
+        showPhone: false,
+        showExactLocation: false
+      };
+      
+      // Handle privacy data which might be a string or object
+      if (user.profile.privacy) {
+        if (typeof user.profile.privacy === 'string') {
+          try {
+            privacy = { ...privacy, ...JSON.parse(user.profile.privacy) };
+          } catch (e) {
+            console.warn('Failed to parse privacy settings:', e);
+          }
+        } else if (typeof user.profile.privacy === 'object') {
+          privacy = { ...privacy, ...user.profile.privacy };
+        }
+      }
+      
       setFormData({
         displayName: user.profile.displayName || "",
         bio: user.profile.bio || "",
         city: user.profile.city || "",
         languages: user.profile.languages || [],
         skills: user.profile.skills || [],
-        privacy: user.profile.privacy || {
-          showEmail: false,
-          showPhone: false,
-          showExactLocation: false
-        }
+        privacy
       });
     }
   }, [user, isAuthenticated, loading, router]);
