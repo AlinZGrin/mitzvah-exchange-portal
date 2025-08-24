@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
           profile: {
             displayName: privacyAwareInfo.displayName,
             email: privacyAwareInfo.email,
-            city: privacyAwareInfo.city,
+            location: privacyAwareInfo.location,
             showEmail: privacyAwareInfo.showEmail,
             showLocation: privacyAwareInfo.showLocation
           }
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
           profile: {
             displayName: privacyAwareInfo.displayName,
             email: privacyAwareInfo.email,
-            city: privacyAwareInfo.city,
+            location: privacyAwareInfo.location,
             showEmail: privacyAwareInfo.showEmail,
             showLocation: privacyAwareInfo.showLocation
           }

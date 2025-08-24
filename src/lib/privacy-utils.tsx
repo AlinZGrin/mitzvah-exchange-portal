@@ -163,6 +163,51 @@ export function getPrivacyAwareUserInfo(user: UserWithPrivacy, currentUserId?: s
 }
 
 /**
+ * Component for displaying user contact information with privacy awareness
+ */
+export interface ContactInfoProps {
+  user: UserWithPrivacy;
+  currentUserId?: string;
+  hasActiveAssignment?: boolean;
+  showCompactView?: boolean;
+  className?: string;
+}
+
+export function UserContactInfo({ user, currentUserId, hasActiveAssignment = false, showCompactView = false, className = '' }: ContactInfoProps) {
+  const info = getPrivacyAwareUserInfo(user, currentUserId, hasActiveAssignment);
+  
+  return (
+    <div className={`space-y-1 ${className}`}>
+      <div className="font-medium text-gray-900">
+        {info.displayName}
+      </div>
+      
+      {!showCompactView && (
+        <>
+          {info.email && (
+            <div className="text-sm text-gray-600">
+              📧 {info.email}
+            </div>
+          )}
+          
+          {info.location && (
+            <div className="text-sm text-gray-600">
+              📍 {info.location}
+            </div>
+          )}
+          
+          {!info.showEmail && !info.isOwnProfile && (
+            <div className="text-xs text-gray-400 italic">
+              Contact details private
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * Hook for getting privacy-aware user information
  */
 export function usePrivacyAwareUserInfo(user: UserWithPrivacy, currentUserId?: string, hasActiveAssignment: boolean = false) {

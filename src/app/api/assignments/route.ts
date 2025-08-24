@@ -74,7 +74,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
           profile: {
             displayName: privacyAwareInfo.displayName,
             email: privacyAwareInfo.email,
-            city: privacyAwareInfo.city,
+            location: privacyAwareInfo.location,
             phone: showPhone ? (profile as any)?.phone : null,
             showEmail: privacyAwareInfo.showEmail,
             showLocation: privacyAwareInfo.showLocation,
@@ -114,7 +114,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
           profile: {
             displayName: privacyAwareInfo.displayName,
             email: privacyAwareInfo.email,
-            city: privacyAwareInfo.city,
+            location: privacyAwareInfo.location,
             phone: showPhone ? (profile as any)?.phone : null,
             showEmail: privacyAwareInfo.showEmail,
             showLocation: privacyAwareInfo.showLocation,
